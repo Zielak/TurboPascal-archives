@@ -1,0 +1,139 @@
+program bryly;
+
+uses crt;
+
+var a,h,hd,menu,v,Pp,P:word;
+    znak:Char;
+
+    { RESET }
+procedure reset;
+Begin
+     textbackground(black);
+     clrscr;
+     v:=0;
+     p:=0;
+     h:=0;
+     a:=0;
+End;
+
+    { SZLACZEK }
+procedure szlaczek(znak:Char);
+var i:byte;
+Begin
+     writeln('');
+     for i:=1 to 30 do Begin
+         write(znak);
+     End;
+     writeln('');
+End;
+
+    { POLE PODSTAWY }
+function pole_podst(a:integer):word;
+Begin
+     pole_podst:=a*a;
+
+End;
+
+    { POLE GRANIAST }
+function gran(Pp:word;a:word;h:word):word;
+Begin
+     gran:=2*Pp+4*h*a;
+End;
+
+    { OBJETOSC GRANIAST }
+function ob_gran(Pp:word;h:word):word;
+Begin
+     ob_gran:=Pp*h;
+End;
+
+    { POLE OSTROSLUPA }
+function ostr(Pp:word;a:word;hd:word):word;
+var b:real;
+Begin
+     b:=Sqrt((hd*hd)+(a/2)*(a/2));
+
+
+End;
+
+
+Begin
+     { GLOWNE FUNKCJE }
+     reset;
+     write('Wprowadz znak uzywany do szlaczka (tylko jeden symbol): ');
+     read(znak);
+     clrscr;
+
+     { SZLACZEK }
+     szlaczek(znak);
+     { MENU }
+     writeln('บ                                                          บ');
+     writeln('บ  Program oblicza pole podstawy                           บ');
+     writeln('บ  wybranej bryly, jej objetosc oraz pole calkowite.       บ');
+     write('บ                                                          บ');
+     { SZLACZEK }
+     szlaczek(znak);
+
+
+
+
+
+     textcolor(yellow);
+     textbackground(black);
+
+          { GRAFICZNE MENU }
+          writeln('Wybierz figure z ponizszych');
+          writeln('');
+          textcolor(yellow);
+          writeln('        ฺฤฤฤฤฤฤ[ Wybierz figure ]ฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฟ');
+          writeln('        ณ                                        ณ');
+          textcolor(yellow);write('        รฤ[1] ');textcolor(white);write('Ostroslop                         ');
+          textcolor(yellow);
+          writeln(' ณ');
+          textcolor(yellow);write('        รฤ[2] ');textcolor(white);write('Graniastoslop                     ');
+          textcolor(yellow);
+          writeln(' ณ');
+          writeln('        ณ                                        ณ');
+          writeln('        รฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤด');
+          write('        รฤฤฤ ');textcolor(white);write('wybierz jakikolwiek inny znak      ');textcolor(yellow);writeln(' ณ');
+          write('        ณ    ');textcolor(white);write('  aby zakonczyc program...         ');textcolor(yellow);writeln(' ณ');
+          writeln('        ณ                                        ');
+          write('        ณ  ');textcolor(white);read(menu);
+
+     { DANE }
+
+
+     writeln(' ออออออออออออออออออออออออออออออออออออออออออออออออออออออออออ ');
+     writeln('บ                                                          บ');
+     writeln('บ     WPROWADZANIE  DANYCH                                 บ');
+     writeln('บ                                                          บ');
+     writeln(' ออออออออออออออออออออออออออออออออออออออออออออออออออออออออออ ');
+     writeln('');
+     textcolor(white);
+     write('Wprowadz a: ');
+     readln(a);
+     write('Wprowadz h: ');
+     readln(h);
+
+     { CASE }
+
+     case menu of
+          1:Begin
+                 write('Pole graniastoslopa wynosi ');
+                 ostr(pole_podst(a),a,h);
+
+          End;
+          2:Begin
+                 write('Pole graniastoslopa wynosi ');
+                 write(gran(pole_podst(a),a,h),'cm2');
+                 write('Objetosc graniastoslupa wynosi ');
+                 writeln(ob_gran(pole_podst(a),h),'cm3');
+
+          End;
+     End;
+
+
+
+
+     repeat
+     until KeyPressed;
+End.

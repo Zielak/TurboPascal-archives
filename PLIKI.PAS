@@ -1,0 +1,225 @@
+program pliki;
+
+uses crt;
+
+var f1:text;
+    filename:string;
+
+
+procedure wybor;
+begin
+clrscr;
+writeln('Wprowadz nazwe pliku:');
+write('D:\2F1\text\>');
+readln(filename);
+filename:='D:\2F1\text\'+filename+'.txt';
+assign(f1, filename);
+reset(f1);
+end;
+
+procedure updated;
+begin
+writeln('Plik zupdatowany!');
+readln;
+end;
+
+procedure a;
+var imie,nazw,adres,numerfona,dataur,miejsceur:string;
+begin
+writeln('Podaj swoje dane osobowe.');
+writeln;
+write('imie: ');
+readln(imie);
+write('nazwisko: ');
+readln(nazw);
+write('adres: ');
+readln(adres);
+write('numer fona: ');
+readln(numerfona);
+write('data ur: ');
+readln(dataur);
+write('miejsce zarodzenia: ');
+readln(miejsceur);
+
+assign(f1, 'D:\2f1\text\dane.txt');
+
+append(f1);
+
+write(f1, 'imie:       ',imie);writeln(f1);
+write(f1, 'nazwisko:   ',nazw);writeln(f1);
+write(f1, 'adres:      ',adres);writeln(f1);
+write(f1, 'numer fona: ',numerfona);writeln(f1);
+write(f1, 'data ur.:   ',dataur);writeln(f1);
+write(f1, 'miejsce ur.:',miejsceur);writeln(f1);
+writeln(f1, '______________________________');
+
+close(f1);
+updated;
+end;
+
+
+procedure b;
+var i,j:integer;
+begin
+
+assign(f1, 'D:\2f1\text\liczby.txt');
+
+rewrite(f1);
+
+writeln('Zostanie zapisanach kilka losowych liczb obok siebie');
+j:=random(25)+5;
+for i:=0 to j do write(f1, i, ' ');
+close(f1);
+updated;
+end;
+
+
+procedure c;
+var i,j:integer;
+begin
+
+assign(f1, 'D:\2f1\text\liczby2.txt');
+
+rewrite(f1);
+
+writeln('Zostanie zapisanach kilka losowych liczb w nowych liniach');
+j:=random(25)+5;
+for i:=0 to j do writeln(f1, i);
+close(f1);
+updated;
+end;
+
+
+
+procedure d;
+var ch:char;
+begin
+wybor;
+while not Eof(f1) do
+begin
+  read(f1, ch);
+  write(ch);
+end;
+readln;
+end;
+
+
+
+procedure e;
+var ch:char;
+begin
+filename:='D:\2F1\text\dane.txt';
+assign(f1, filename);
+reset(f1);
+while not Eof(f1) do
+begin
+  read(f1, ch);
+  write(ch);
+end;
+readln;
+end;
+
+
+
+procedure autafav;
+var a1,a2,a3,a4,a5:string;
+begin
+writeln('Podaj 5 ulubionych marek samochodow.');
+writeln;
+write('1. ');
+readln(a1);
+write('2. ');
+readln(a2);
+write('3. ');
+readln(a3);
+write('4. ');
+readln(a4);
+write('5. ');
+readln(a5);
+
+assign(f1, 'D:\2f1\text\autofav.txt');
+
+append(f1);
+
+write(f1, '1. ',a1);writeln(f1);
+write(f1, '2. ',a2);writeln(f1);
+write(f1, '3. ',a3);writeln(f1);
+write(f1, '4. ',a4);writeln(f1);
+write(f1, '5. ',a5);writeln(f1);
+writeln(f1, '______________________________');
+
+close(f1);
+updated;
+end;
+
+procedure autofu;
+var a1,a2,a3,a4,a5:string;
+begin
+writeln('Podaj 5 slabych marek samochodow.');
+writeln;
+write('1. ');
+readln(a1);
+write('2. ');
+readln(a2);
+write('3. ');
+readln(a3);
+write('4. ');
+readln(a4);
+write('5. ');
+readln(a5);
+
+assign(f1, 'D:\2f1\text\autofu.txt');
+
+append(f1);
+
+write(f1, '1. ',a1);writeln(f1);
+write(f1, '2. ',a2);writeln(f1);
+write(f1, '3. ',a3);writeln(f1);
+write(f1, '4. ',a4);writeln(f1);
+write(f1, '5. ',a5);writeln(f1);
+writeln(f1, '______________________________');
+
+close(f1);
+updated;
+end;
+
+
+procedure autoall;
+var ch:char;
+begin
+writeln('Samochody ulubione:');
+filename:='D:\2F1\text\autofav.txt';
+assign(f1, filename);
+reset(f1);
+while not Eof(f1) do
+begin
+  read(f1, ch);
+  write(ch);
+end;
+writeln;
+writeln('Samochody nielubiane:');
+filename:='D:\2F1\text\autofu.txt';
+assign(f1, filename);
+reset(f1);
+while not Eof(f1) do
+begin
+  read(f1, ch);
+  write(ch);
+end;
+
+readln;
+end;
+
+
+
+
+begin
+
+TextMode(C80 + Font8x8);
+autafav;
+autofu;
+autoall;
+
+
+
+end.

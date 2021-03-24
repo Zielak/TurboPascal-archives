@@ -1,0 +1,218 @@
+program matrix;
+
+uses crt;
+
+var
+paski:array[0..100, 0..3] of byte; {len, xpos, ypos, made?}
+maxpaski:byte;
+{ zmienne dla petli }
+fo:byte;
+fo2:byte;
+rnd:byte;
+{ zmienne dla okna About }
+aboutOpen:Boolean;
+aboutInt:word;
+{ krotka zmienna liczbowa tymczasowa }
+temp:shortint;
+
+
+{################################################################}
+function checkLen:byte;
+var paskilen:byte;
+Begin
+     paskilen:=0;
+     for fo:=0 to maxpaski do
+     begin
+          if paski[fo,3]=1 then paskilen:=paskilen+1;
+     end;
+     checkLen:=paskilen;
+End;
+
+
+{################################################################}
+procedure debug;
+Begin
+     gotoXY(50,40);
+     write('paski.length = ',checkLen);
+     gotoXY(50,41);
+     write('Matrix Program by Zielak');
+End;
+
+
+{################################################################}
+procedure makeLine;
+var len,xpos:byte;
+    check:boolean;
+Begin
+
+{ CHECK FOR PLACES }
+if checkLen<maxpaski then begin
+     {i:=i+1;
+     if i>maxpaski then i:=0;}
+
+     { pick empty place }
+     check:=false;
+     fo:=0;
+     while check=false do
+     if paski[fo,3]=1 then fo:=fo+1
+     else check:=true;
+
+     { BEGIN }
+
+     repeat
+           len:=random(2)+3;
+     until len<25;
+
+     xpos:=random(77)+2;
+     paski[fo,0]:=len; {len}
+     paski[fo,1]:=xpos;{xpos}
+     paski[fo,2]:=0;   {ypos}
+     paski[fo,3]:=1;   {made?}
+end;
+
+End;
+
+{################################################################}
+procedure removeLine(lul:word);
+Begin
+     paski[lul,0]:=0;   {len}
+     paski[lul,1]:=0;   {xpos}
+     paski[lul,2]:=0;   {ypos}
+     paski[lul,3]:=0;   {made?}
+End;
+
+
+{################################################################}
+procedure redrawLines;
+Begin
+
+
+     for fo:=0 to maxpaski do                           { dla kazdego paska }
+     begin
+          if paski[fo,3]=1 then                         { jezeli jest utworzony }
+          begin
+               paski[fo,2]:=paski[fo,2]+1;              { dodaj pozycje y }
+               if paski[fo,2] > 50 then removeLine(fo)  { jezeli jest nisko }
+               else                                     {     to usun       }
+               begin
+                    textbackground(2);
+                    textcolor(white);
+                    gotoXY(paski[fo,1],paski[fo,2]);
+                    write(random(9));
+                    textcolor(10);
+                    for fo2:=1 to paski[fo,0] do
+                    begin
+                         temp:=paski[fo,2]-fo2;
+                         if temp>0 then
+                         begin
+                              gotoXY(paski[fo,1],paski[fo,2]-fo2);
+                              write(random(9));
+                         end;
+                    end;
+                    temp:=paski[fo,2]-fo2-1;
+                    if temp>0 then
+                    begin
+                         gotoXY(paski[fo,1],paski[fo,2]-fo2-1);
+                         textbackground(black);
+                         write(random(9));
+                    end;
+               end;
+          end;
+     end;
+     {
+     textbackground(black);
+     textcolor(white);
+     gotoXY(2,1);
+     for fo:=0 to 77 do write('-');
+     gotoXY(2,49);
+     for fo:=0 to 77 do write('-');
+     }
+End;
+
+
+{################################################################}
+procedure randomBg;
+var x,y:byte;
+Begin
+     textcolor(2);
+     textbackground(black);
+     for x:=random(78)+2 to random(78)+2 do begin
+         for y:=random(48)+1 to random(48)+1 do begin
+             gotoXY(x,y);
+             write(random(9));
+         end;
+     end;
+
+End;
+
+
+{################################################################}
+procedure bottomDiappear;
+Begin
+     textbackground(black);
+     gotoXY(random(77)+2,50);
+     write(' ');
+End;
+
+
+{################################################################}
+procedure about;
+Begin
+     textbackground(black);
+     textcolor(white);
+     gotoXY(30,20);
+     write('                    ');
+     gotoXY(30,21);
+     write('  MATRIX by Zielak  ');
+     gotoXY(30,22);
+     write('  ZSEF 2F  2007/08  ');
+     gotoXY(30,23);
+     write(' zielak69@gmail.com ');
+     gotoXY(30,24);
+     write('                    ');
+End;
+
+begin
+
+textbackground(black);
+clrscr;
+
+aboutInt:=0;
+maxpaski:=70;
+fo:=0;
+
+repeat
+
+{ tworzenie linii }
+rnd:=random(1);
+if rnd=0 then
+begin
+     makeLine;
+end;
+
+{ RYSOWANIE }
+if random(2)=0 then randomBg;
+redrawLines;
+
+if random(6)=1 then bottomDiappear;
+aboutInt:=aboutInt+1;
+
+if aboutInt=300 then
+   if aboutOpen=false then begin
+      aboutOpen:=true;
+      aboutInt:=0;
+   end
+   else
+   if aboutOpen=true then begin
+      aboutOpen:=false;
+      aboutInt:=0;
+   end;
+
+
+if aboutOpen=true then about;
+
+{ PETLA }
+delay(30);
+until keypressed;
+
+end.

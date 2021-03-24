@@ -1,0 +1,386 @@
+procedure Init13h;
+assembler;
+asm  mov ax,13h
+{do rejestru AX przypisujemy wartoœæ 13h (litera h przy wartoœci oznacz...}
+{...¿e liczba podana jest w systemie szesnastkowym} int 10h {i na ekran to (10h to przerywanie ekranu/video}
+end;
+
+procedure Close13h;
+assembler;
+asm
+mov ax,03h {do AX wartoœæ 03h}
+int 10h {... i na ekran}
+end;
+
+procedure PutPixel(x:word;y:word;color:byte);
+assembler;
+asm
+mov ax,0a000h {³adujemy rejestr segmentowy es adresem ekranu}
+mov es,ax {ale nie mo¿na tego robiæ bezpoœrednio}
+mov di,x {do di offset punktu -> 320*y+x, wiec}
+mov dx,y {(x+64*y+256*y), czyli (x+2^6*y+2^8*y)}
+shl dx,6 {w³aœnie, przypomnia³em sobie : }
+add di,dx {nie wiem czy wiesz, wiêc mowie ->}
+shl dx,2 {->wspo³rzedne ekranu liczymy od zera!!!}
+add di,dx {mamy wiêc [0..319]*[0..199]}
+mov cl,color {do cl kolorek}
+mov es:[di],cl {no i na ekran go :)))}
+end;
+
+function getpixel(x,y:word):byte;
+assembler;
+asm
+mov ax,y
+mov bx,320
+mul bx
+add ax,x
+{ax=y*320+x}
+mov dx,0A000h
+mov es,dx
+mov di,ax
+mov al,es:[di]
+{Wynik w al=>wartosc funkcji}
+end;
+
+procedure SetColor(index:byte;r:byte;g:byte;b:byte);
+assembler;
+{index to numer koloru który chcesz zmieniæ -> masz kolory od zera do 255, wiêc}
+{wielkoœæ byte (dwa do ósmej) no bo byte (po naszemu bajt ;>) to osiem bitów, a bit}
+{mo¿e mieæ wartoœci zero lub jeden (zapalony lub nie). R,G,B to sk³adowe tego}
+{koloru, czyli zawartoœæ barw czerwonej, zielonej, niebieskiej w naszym kolorze. S¹}
+{to wielkoœci byte, ale tak naprawdê to z przedzia³u od zera do szeœædziesiêciu}
+{trzech (dwa do szóstej). Jak wpiszesz wiêcej ni¿ szeœædziesi¹t trzy, to program}
+{wykona operacjê (r mod 63)}
+asm
+mov dx,03c8h {do dx numer portu 03c8h}
+mov al,index {do al numer koloru}
+out dx,al {i wysy³amy na port z dx numer z al}
+inc dx {zwiêkszamy o 1 dx}
+mov al,r {do al sk³adowa czerwona}
+out dx,al {i wysy³amy}
+mov al,g {i}
+out dx,al {t}
+mov al,b {d}
+out dx,al {.}
+end;{.}
+
+procedure GetColor(index:byte; var r,g,b:byte);
+begin
+asm
+mov dx,03c7h
+mov al,index
+out dx,al
+inc dx
+inc dx
+in al,dx
+mov r1,al
+in al,dx
+mov g1,al
+in al,dx
+mov b1,al
+end;
+r:=r1;
+g:=g1;
+b:=b1;
+{ojoj, to siê porobi³o...syf ta procedura, nie pokazuj jej nikomu, a na pocz¹tek i to}
+{starczy :) ale nie chce mi siê nic kombinowaæ...}
+{Na konkurs to ¿aden nie jest a mi siê fade'a zachcia³o ma³ego na koniec...to trzeba by}
+{w asmie do .obj zakodowaæ, ale mia³ byæ pure paszczal}
+end;
+
+procedure czekaj;
+assembler;
+asm
+@petla :
+mov ah,01h
+int 16h
+jnz @petla
+xor ah,ah
+int 16h
+end;
+
+procedure Line(x1,y1,x2,y2:Integer; color:Byte);
+var  wsk1,wsk2,podpr:word;
+begin
+asm
+push si
+push di
+push es
+mov ax,$a000
+mov es,ax
+mov si,320
+mov cx,x2
+sub cx,x1
+jz @@VL
+jns @@pdr1
+neg cx
+mov bx,x2
+xchg bx,x1
+mov x2,bx
+mov bx,y2
+xchg bx,y1
+mov y2,bx
+@@pdr1:
+mov bx,y2
+sub bx,y1
+jz @@HL
+jns @@pdr3
+neg bx
+neg si
+@@pdr3:
+push si
+mov podpr,offset @@LL1
+cmp bx,cx
+jle @@pdr4
+mov podpr,offset @@HL1
+xchg bx,cx
+@@pdr4:
+shl bx,1
+mov wsk1,bx
+sub bx,cx
+mov si,bx
+sub bx,cx
+mov wsk2,bx
+push cx
+mov ax,y1
+mov bx,x1
+xchg ah,al
+add bx,ax
+shr ax,1
+shr ax,1
+add bx,ax
+mov di,bx
+pop cx
+inc cx
+pop bx
+jmp podpr
+@@VL:
+mov ax,y1
+mov bx,y2
+mov cx,bx
+sub cx,ax
+jge @@pdr31
+neg cx
+mov ax,bx
+@@pdr31:
+inc cx
+mov bx,x1
+push cx
+xchg ah,al
+add bx,ax
+shr ax,1
+shr ax,1
+add bx,ax
+pop cx
+mov di,bx
+dec si
+mov al,color
+@@pdr32:
+stosb
+add di,si
+loop @@pdr32
+jmp @@Exit
+@@HL:
+push cx
+mov ax,y1
+mov bx,x1
+xchg ah,al
+add bx,ax
+shr ax,1
+shr ax,1
+add bx,ax
+mov di,bx
+pop cx
+inc cx
+mov al,color
+rep stosb
+jmp @@Exit
+@@LL1:
+mov al,color
+@@pdr11:
+stosb
+or si,si
+jns @@pdr12
+add si,wsk1
+loop @@pdr11
+jmp @@Exit
+@@pdr12:
+add si,wsk2
+add di,bx
+loop @@pdr11
+jmp @@Exit
+@@HL1:
+mov al,color
+@@pdr21:
+stosb
+add di,bx
+@@pdr22:
+or si,si
+jns @@pdr23
+add si,wsk1
+dec di
+loop @@pdr21
+jmp @@Exit
+@@pdr23:
+add si,wsk2
+loop @@pdr21
+@@Exit:
+pop es
+pop di
+pop si
+end;
+end;
+
+
+procedure HLine;
+assembler;
+asm
+mov bx,&x
+mov cx,&y
+mov ax,0a000h
+mov es,ax
+xchg ch,cl
+add bx,cx
+shr cx,1
+shr cx,1
+add bx,cx
+mov cx,l
+mov dl,&c
+@petla:
+mov es:[bx],dl
+inc bx
+loop @petla
+end;
+
+procedure VLine;
+assembler;
+asm
+mov bx,&x
+mov cx,&y
+mov ax,0a000h
+mov es,ax
+xchg ch,cl
+add bx,cx
+shr cx,1
+shr cx,1
+add bx,cx
+mov cx,l
+mov dl,&c
+@petla:
+mov es:[bx],dl
+add bx,320
+loop @petla
+end;
+
+
+procedure Bar;
+assembler;
+asm
+mov bx,&x
+mov cx,&y
+mov ax,0a000h
+mov es,ax
+xchg ch,cl
+add bx,cx
+shr cx,1
+shr cx,1
+add bx,cx
+mov cx,&y1
+mov dl,&c
+@p1:
+push cx
+mov cx,&x1
+push bx
+@p2:
+mov es:[bx],dl
+inc bx
+inc si
+loop @p2
+pop bx
+pop cx
+add bx,320
+loop @p1
+end;
+
+
+procedure OutText(txt:array of Char; x,y:Integer; color:Byte);
+type  Tab = array [0..4080] of Byte;
+var  WskTab : ^Tab; k,i,b,j,Tekst_Seg,Tekst_Ofs : Integer;
+Znak : Char; Rej : Registers;
+begin
+Rej.AX:=$1124;
+Rej.BL:=0; Rej.DL:=200;
+Intr($10,Rej);
+Rej.AX:=$1130;
+Rej.BH:=6;
+Intr($10,Rej);
+Tekst_Seg:=Rej.ES;
+Tekst_Ofs:=Rej.BP;
+WskTab:=Ptr(Tekst_Seg,Tekst_Ofs);
+
+for k:=0 to SizeOf(Txt)-1 do begin
+  znak:=Txt[k];
+  for j:=0 to 15 do  begin
+    b:=WskTab^[Ord(Znak)*16+j];
+    for i:=0 to 7 do begin
+      if(b and 128)<>0 then PutPixel(x+i,y+j,color);
+      b:=b shl 1;
+    end;
+  end;
+  x:=x+8;
+end;
+
+
+end;
+
+
+
+
+
+procedure ClearScreen(color:Byte);
+{czyœci ekran w danym kolorze}
+begin
+FillChar(Mem[$a000:0],64000,color);
+end;
+
+
+procedure BlackAll;
+{powoduje wyzerowanie ca³ej palety, przez co wszystko staje siê czarne}
+var  i : Byte;
+begin
+for i:=0 to 255 do SetRGB(i,0,0,0);
+end;
+
+
+procedure Wait;
+{opisana wy¿ej procedura zatrzymuj¹ca program na czas powrotu plamki}
+assembler;
+label  l1,l2;
+asm
+mov dx,3DAh
+l1: in al,dx
+and al,08h
+jnz l1
+l2: in al,dx
+and al,08h
+jz l2
+end;
+
+
+procedure FadeDown;
+{stopniowe œciemnienie ekranu}
+var  lo1,lo2 : Integer;
+Tmp : array [1..3] of Byte;
+
+begin
+for lo1:=1 to 64 do begin
+  Wait;
+  for lo2:=0 to 255 do begin
+    GetRGB(lo2,Tmp[1],Tmp[2],Tmp[3]);
+    if Tmp[1]>0 then Dec(Tmp[1]);
+    if Tmp[2]>0 then Dec(Tmp[2]);
+    if Tmp[3]>0 then Dec(Tmp[3]);
+    SetRGB(lo2,Tmp[1],Tmp[2],Tmp[3]);
+  end;
+end;
+end;

@@ -1,0 +1,48 @@
+program hax;
+
+uses Crt;
+
+var i,j:integer;
+
+
+begin
+clrscr;
+j:=0;
+repeat
+j:=j+1;
+     i:=1;
+     repeat
+           i:=i+1;
+           Sound(-i*30+600);
+           Delay(30);
+           NoSound;
+           Delay(5);
+     until (i>=10);
+     i:=1;
+     repeat
+           i:=i+1;
+           Sound(-i*20+800);
+           Delay(30);
+           NoSound;
+           Delay(5);
+     until (i>=10);
+     i:=1;
+     repeat
+           i:=i+1;
+           Sound(-i*30+600);
+           Delay(30);
+           NoSound;
+           Delay(5);
+     until (i>=10);
+     i:=1;
+     repeat
+           i:=i+1;
+           Sound(-i*20+800);
+           Delay(30);
+           NoSound;
+           Delay(5);
+     until (i>=10);
+until (j>=3);
+end.
+
+

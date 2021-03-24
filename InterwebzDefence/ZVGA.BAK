@@ -1,0 +1,1574 @@
+
+{$G+}
+unit zvga;
+
+interface
+
+uses crt,Dos,Graph;
+
+
+const
+  Scr:pointer=ptr($09000,0);
+  maxx=319;
+  maxy=199;
+  maxc=255;
+  BmpOk           =  0;
+  BmpUnknownError = -1;
+  BmpFileNotFound = -2;
+  BmpNotSuppRes   = -3;
+  BmpNotSuppFmt   = -4;
+
+
+type
+  Kolor = record r,g,b:byte end;
+  Paleta = array[0..255] of Kolor;
+
+  point = record
+    x,y:integer;
+  end;
+  poly = array[0..40] of point;
+
+  TPaletteEntry = record
+    B: Byte;
+    G: Byte;
+    R: Byte;
+    Flags: Byte;
+  end;
+  TBitmapFileHeader = record
+    bfType: Word;
+    bfSize: Longint;
+    bfReserved1: Word;
+    bfReserved2: Word;
+    bfOffBits: Longint;
+    biSize: Longint;
+    biWidth: Longint;
+    biHeight: Longint;
+    biPlanes: Word;
+    biBitCount: Word;
+    biCompression: Longint;
+    biSizeImage: Longint;
+    biXPelsPerMeter: Longint;
+    biYPelsPerMeter: Longint;
+    biClrUsed: Longint;
+    biClrImportant: Longint;
+  end;
+
+
+var
+  keys:array[0..128] of boolean;
+  Int9hSave:pointer;
+  intpal:Paleta;
+  { Zmienne myszy }
+  Regs:registers;
+  xm,ym,sxm,sym:integer;
+  button:word;
+  rpal,gpal,bpal:BYTE;
+
+  i,DrawBase:word;
+
+  BitmapName : String;
+  F : File;
+  bfh : TBitmapFileHeader;
+  Pal256 : array[0..255] of TPaletteEntry;
+  Pal16 : array[0..15] of TPaletteEntry;
+  FileOpen : Boolean;
+  Width_R, Width, Height : Word;
+  BitCount : Word;
+  Xstart, Ystart, xt, yt : Word;
+  W2 : Word;
+
+
+
+procedure initvga;                 { inicjuje tryb graficzny 320x200 }
+procedure closevga;                { zamyka tryb graficzny }
+procedure drawpage;                { przerysowuje bufor na ekran }
+procedure czekaj;                  { czeka na powrot poziomy monitora }
+procedure cls(color:byte);         { czysci zawartosc bufora }
+
+procedure setColor(index:byte;r,g,b:byte);        { ustawia kolor w palecie }
+procedure getColor(index:BYTE{; VAR rpal,gpal,bpal:BYTE});{ pobiera kolor z palety }
+
+procedure VGAText(x,y:word;c:Byte;s:string;delta:ShortInt);
+          { VGAText(x,y,c,s,d); }
+
+procedure pixel(x,y:integer;color:byte);          { rysuje pojedynczy pixel}
+function  getpixel(x,y:word):byte;                { pobiera wartosc pixela }
+procedure LineH(x1,x2,y:word;c:byte);             { rysuje pozioma linie }
+procedure LineV(x,y1,y2:word;c:byte);             { rysuje pionowa linie }
+procedure Line(X1,Y1,X2,Y2:integer;C:Byte);       { rysuje dowolna linie }
+procedure box(x1,x2,y1,y2:word;c:byte;fill:boolean);{ rysuje kwadrat }
+procedure boxout(x1,x2,y1,y2:word;cf,co:byte);    { rysuje kwadrat z wypelnieniem }
+                                                  { i otoczka w innym kolorze }
+procedure circle(xc,yc,rc:word;cc:byte);          { rysuje okreg }
+procedure CircleFill(xc,yc,rc:word;cc:byte);      { rysuje kolo }
+procedure elipsa(x,y,a,b:integer;c:word);         { rysuje elipse }
+
+function ShowBitMapImage(Name : String; X, Y : Word) : Integer;
+
+{ ***** MYSZ ******* }
+function  InitMouse:boolean;
+procedure MShow;
+procedure MHide;
+procedure GetPos;
+procedure GetPos13;
+function  mx:integer;
+function  my:integer;
+procedure SetPos(x,y:word);
+procedure LimitX(min,max:word);
+procedure LimitX13(min,max:word);
+procedure LimitY(min,max:word);
+procedure Old;
+function  inside(x1,y1,x2,y2,x,y: integer): boolean;
+function  mousebtn:word;
+
+{ ****** KLAWIATURA ******* }
+procedure InitKey;
+procedure KillKey;
+
+
+
+{function real2word(i:real):word;                  { konwertuje real na word }
+
+implementation
+
+
+
+
+
+procedure showfps(x,y:word);
+var h,m,s,ml:word;
+begin
+
+gettime(h,m,s,ml);
+end;
+
+
+
+
+
+
+procedure initvga; Assembler;
+asm
+MOV AL,13H
+MOV AH,00H
+INT 10H
+end;
+
+procedure closevga; Assembler;
+asm
+MOV AL,03H
+MOV AH,00H
+INT 10H
+end;
+
+
+procedure cls(color:byte);assembler;
+asm
+  mov ax,09000h
+  mov es,ax
+  xor di,di
+  db 66h
+  xor ax,ax
+  mov al,color
+  mov ah,al
+  mov bx,ax
+  db 66h
+  shl ax,16
+  mov ax,bx
+  mov cx,16000
+  db 66h
+  rep stosW
+end;
+
+(*
+procedure clss;assembler;
+asm
+MOV AX,0A000H { do AX adres ostatniego segmentu }
+MOV ES,AX     { ES = AX }
+MOV DI,0      { DI = 0 - zacznij od pierwszego pixela (0,0) }
+MOV AL,0      { do AL kolor }
+MOV AH,0      { do AH kolor }
+MOV CX,32000  { zapisujemy po dwa bajty (64000 / 2) bo tak jest szybciej }
+end;
+(*
+procedure clss;assembler;
+asm
+MOV [ES:DI],AX  { ustaw dwa bajty w pamieci }
+INC DI          { wskaz na nastepne }
+INC DI          { dwa bajty do nadpisania }
+REP   { r¢b petle }
+end;
+*)
+
+procedure czekaj;
+begin
+asm
+mov dx, 03dah
+@jest:          {czekanie konca obecnego powrotu pionowego}
+in  al, dx
+test al, 00001000b
+jnz @jest
+
+@nie_ma:        {czekanie poczatku powrotu pionowego}
+in al, dx
+test al, 00001000b
+jz @nie_ma
+end;
+end;
+
+
+procedure drawpage;
+begin
+move(mem[$9000:0],mem[$A000:0],64000);
+end;
+
+procedure setColor(index:byte;r,g,b:byte);
+begin
+if r>63 then r:=63;
+if g>63 then g:=63;
+if b>63 then b:=63;
+asm
+mov dx,03c8h        {do dx numer portu 03c8h}
+mov al,index        {do al numer koloru}
+out dx,al           {i wysyˆamy na port z dx numer z al}
+inc dx              {zwi©kszamy o 1 dx}
+mov al,r            {do al skˆadowa czerwona}
+out dx,al           {i wysyˆamy}
+mov al,g            {i}
+out dx,al           {t}
+mov al,b            {d}
+out dx,al           {.}
+end;
+end;
+
+procedure getColor(index:BYTE{; VAR rpal,gpal,bpal:BYTE});
+BEGIN
+  Port[$3C7] := index;      { Set the port to read from }
+  rpal := Port[$3C9];       { Read the Red component    }
+  gpal := Port[$3C9];       { Read the Green component  }
+  bpal := Port[$3C9];       { Read the Blue component   }
+END;
+
+
+procedure VGAText(x,y:word;c:Byte;s:string;delta:ShortInt); assembler;
+  const
+    segfont=$F000;
+    ofsfont=$FA6E;
+  var
+    scrs, strs, stro: Word;
+    posx, posy:       Integer;
+  asm
+  {SMALL CLIP}
+   mov ax, y
+   cmp ax, maxy
+   jg @ExitProc
+   add ax, 7
+   cmp ax, 0
+   jl @ExitProc
+   mov cx, x
+   cmp cx, maxx
+   jg @ExitProc
+   les si, s
+   xor ah, ah
+   mov strs, es
+   mov stro, si
+   mov al, es:[si]
+   or al, al
+   je @ExitProc
+   dec cx
+   shl ax, 3
+   add cx, ax {cx=x+length(s)*8-1}
+   cmp cx, 0
+   jl @ExitProc
+ {PRINT}
+   mov es, DrawBase
+   xor di, di
+   mov scrs, es
+
+   mov bx, 320
+   mov ax, y
+   shl ax, 6
+   add di, ax
+   shl ax, 2
+   add di, ax
+   add di, x
+
+   mov dx, bx
+   sub dx, 8
+
+   mov es, strs
+   mov si, stro
+   xor ch, ch
+   mov cl, es:[si]
+   inc stro
+
+   mov ax, x
+   mov posx, ax
+
+  @nextchar:
+   push cx
+
+   mov es, strs
+   mov si, stro
+   xor ah, ah
+   mov al, es:[si]
+   inc si
+   mov stro, si
+
+   shl ax, 3
+   mov si, ofsfont
+   add si, ax
+   mov bh, c
+
+   mov ax, y
+   mov posy, ax
+
+   mov cx, 8
+  @nextline:
+   push cx
+   push dx
+   mov dx, posy
+   cmp dx, 0
+   jl @noline
+   cmp dx, maxy
+   jg @noline
+
+   mov cx, segfont
+   mov es, cx
+   mov al, es:[si]
+   inc si
+   mov es, scrs
+
+   mov dx, posx
+   mov bl, $80
+  @nextpix:
+   cmp dx, 0
+   jl @spoko
+   cmp dx, maxx
+   jg @spoko
+
+   mov cl, al
+   and cl, bl
+   jz @spoko
+   mov es:[di], bh
+  @spoko:
+   inc di
+
+   inc dx
+   shr bl, 1
+   jnz @nextpix
+
+   jmp @was_line
+  @noline:
+   inc si
+   add di, 8
+  @was_line:
+   pop dx
+   add di, dx
+
+   inc posy
+   pop cx
+   add bh, delta
+   dec cx
+   jnz @nextline
+
+   add posx, 8
+
+   mov ax, 320*8
+   sub di, ax
+
+   add di, 8
+
+   pop cx
+   dec cx
+   jnz @nextchar
+  @ExitProc:
+end;
+
+Procedure Fill(X,Y:Word;C:Byte);
+Var
+  P1, P2     : Pointer;
+  Sg1, Sg2, P,
+  ZX, ZY, ZP : Word;
+  CO         : Byte;
+Begin
+  {GetMem (P1, 64000);
+  GetMem (P2, 64000);}
+  Sg1 := $9000{Seg(P1^)};
+  Sg2 := $9000{Seg(P2^)};
+Asm
+  Mov   AX, $9000{VSegA}
+  Mov   ES, AX
+  Mov   DI, X
+  Mov   BX, Y
+  ShL   BX, 6
+  Add   DI, BX
+  ShL   BX, 2
+  Add   DI, BX
+  Mov   AL, ES:[DI]
+  Cmp   AL, C
+  JE    @end
+  Mov   CO, AL
+  Mov   ZP, 0
+  Mov   AX, X
+  Mov   ZX, AX
+  Mov   AX, Y
+  Mov   ZY, AX
+@cycle:
+  Mov   AX, $9000{VSegA}
+  Mov   ES, AX
+  Mov   DI, ZX
+  Mov   BX, ZY
+  ShL   BX, 6
+  Add   DI, BX
+  ShL   BX, 2
+  Add   DI, BX
+  Mov   P, DI
+  Mov   AL, C
+  Mov   ES:[DI], AL
+
+  Mov   AX, ZX
+  Or    AX, AX
+  JZ    @l2
+  Mov   AL, ES:[DI-1]
+  Cmp   AL, CO
+  JNE   @l2
+  Dec   DI
+  Push  ES
+  Mov   AX, Sg1
+  Mov   BX, ZP
+  Cmp   BX, 32000
+  JC    @l1
+  Mov   AX, Sg2
+  Sub   BX, 32000
+@l1:
+  Mov   ES, AX
+  Shl   BX, 1
+  Mov   ES:[BX], DI
+  Inc   ZP
+  Pop   ES
+  Inc   DI
+@l2:
+  Mov   AX, ZX
+  Cmp   AX, 319
+  JNC   @r2
+  Mov   AL, ES:[DI+1]
+  Cmp   AL, CO
+  JNE   @r2
+  Inc   DI
+  Push  ES
+  Mov   AX, Sg1
+  Mov   BX, ZP
+  Cmp   BX, 32000
+  JC    @r1
+  Mov   AX, Sg2
+  Sub   BX, 32000
+@r1:
+  Mov   ES, AX
+  Shl   BX, 1
+  Mov   ES:[BX], DI
+  Inc   ZP
+  Pop   ES
+  Dec   DI
+@r2:
+  Mov   AX, ZY
+  Or    AX, AX
+  JZ    @u2
+  Mov   AL, ES:[DI-320]
+  Cmp   AL, CO
+  JNE   @u2
+  Sub   DI, 320
+  Push  ES
+  Mov   AX, Sg1
+  Mov   BX, ZP
+  Cmp   BX, 32000
+  JC    @u1
+  Mov   AX, Sg2
+  Sub   BX, 32000
+@u1:
+  Mov   ES, AX
+  Shl   BX, 1
+  Mov   ES:[BX], DI
+  Inc   ZP
+  Pop   ES
+  Add   DI, 320
+@u2:
+  Mov   AX, ZY
+  Cmp   AX, 199
+  JNC   @d2
+  Mov   AL, ES:[DI+320]
+  Cmp   AL, CO
+  JNE   @d2
+  Add   DI, 320
+  Push  ES
+  Mov   AX, Sg1
+  Mov   BX, ZP
+  Cmp   BX, 32000
+  JC    @d1
+  Mov   AX, Sg2
+  Sub   BX, 32000
+@d1:
+  Mov   ES, AX
+  Shl   BX, 1
+  Mov   ES:[BX], DI
+  Inc   ZP
+  Pop   ES
+  Sub   DI, 320
+@d2:
+  Mov   BX, ZP
+  Or    BX, BX
+  JZ    @end
+  Dec   BX
+  Mov   ZP, BX
+  Mov   AX, Sg1
+  Cmp   BX, 32000
+  JC    @p1
+  Mov   AX, Sg2
+  Sub   BX, 32000
+@p1:
+  Mov   ES, AX
+  Shl   BX, 1
+  Mov   AX, ES:[BX]
+  Mov   P, AX
+
+  Mov   AX, P
+  Xor   DX, DX
+  Mov   BX, 320
+  Div   BX
+  Mov   ZY, AX
+  Mov   ZX, DX
+  Jmp   @cycle
+@end:
+End;
+{  FreeMem (P2, 64000);
+  FreeMem (P1, 64000)}
+End;
+
+procedure pixel(x,y:integer;color:byte);assembler;
+asm
+MOV AX,y           { do AX pozycje Y pixela }
+CMP AX,0           { jeli AX mniejsze od 0 }
+JL @putpixel_end   { to skocz do etykiety nie_rysuj }
+CMP AX,200         { jeli AX wieksze lub r¢wne 200 }
+JAE @putpixel_end  { to skocz do etykiety nie_rysuj }
+MOV BX,x           { do BX pozycje X pixela }
+CMP BX,0           { jeli BX mniejsze od 0 }
+JL @putpixel_end   { to skocz do etykiety nie_rysuj }
+CMP BX,320         { jeli BX wieksze lub r¢wne 320 }
+JAE @putpixel_end  { to skocz do etykiety nie_rysuj }
+PUSH BX            { od3¢? BX na stos (pozycje X) }
+MOV BX,AX          { BX = AX, czyli do BX pozycja Y }
+SAL AX,6           { ten fragment mno?y Y przez 320 }
+SAL BX,8           { u?ywaj+c przesuniea bitowych }
+ADD AX,BX          { co jest znacznie szybsze }
+POP BX             { zdejmij BX ze stosu (pozycje X) }
+ADD AX,BX          { dodaj do AX pozycje X }
+MOV DI,AX          { rejestr DI = AX }
+MOV AX,09000H      { do AX adres segmentu graficznego }
+MOV ES,AX          { rejestr ES = AX }
+MOV CL,color       { do CL numer koloru pixela }
+MOV [ES:DI],CL     { skopiuj wartoc CL (kolor pixela) do danej komurki w buforze }
+@putpixel_end:
+end;
+
+function getpixel(x,y:word):byte;
+var color:byte;
+begin
+asm
+MOV AX,[Y]         { do AX pozycje Y pixela }
+CMP AX,0           { jeli AX mniejsze od 0 }
+JL @getpixel_end   { to skocz do etykiety nie_rysuj }
+CMP AX,200         { jeli AX wieksze lub r¢wne 200 }
+JAE @getpixel_end  { to skocz do etykiety nie_rysuj }
+MOV BX,[X]         { do BX pozycje X pixela }
+CMP BX,0           { jeli BX mniejsze od 0 }
+JL @getpixel_end   { to skocz do etykiety nie_rysuj }
+CMP BX,320         { jeli BX wieksze lub r¢wne 320 }
+JAE @getpixel_end  { to skocz do etykiety nie_rysuj }
+PUSH BX            { od3¢? BX na stos (pozycje X) }
+MOV BX,AX          { BX = AX, czyli do BX pozycja Y }
+SAL AX,6           { ten fragment mno?y Y przez 320 }
+SAL BX,8           { u?ywaj+c przesuniea bitowych }
+ADD AX,BX          { co jest znacznie szybsze :) }
+POP BX             { zdejmij BX ze stosu (pozycje X) }
+ADD AX,BX          { dodaj do AX pozycje X }
+MOV DI,AX          { rejestr DI = AX }
+MOV AX,09000H      { do AX adres segmentu graficznego }
+MOV ES,AX          { rejestr ES = AX }
+MOV CL,[ES:DI]     { kolor pixela do CL }
+MOV color,CL       { numer koloru do zmiennej Color }
+@getpixel_end:
+end;
+getpixel:=color;
+end;
+
+procedure LineH(x1,x2,y:word;c:byte);assembler;
+asm
+  mov ax,x1
+  cmp ax,x2
+  jb @ok
+  xchg ax,x2
+  mov x1,ax
+@ok:
+  mov ax,09000h
+  mov es,ax
+  mov dx,y
+  mov di,x1
+  xchg dh,dl
+  add di,dx
+  shr dx,2
+  add di,dx
+  mov cx,x2
+  sub cx,x1
+  inc cx
+  mov al,c
+  rep Stosb
+end;
+
+procedure LineV(x,y1,y2:word;c:byte);assembler;
+asm
+  mov ax,09000h{_$A000}
+  mov es,ax
+  mov dx,y1
+  mov di,x
+  xchg dh,dl
+  add di,dx
+  shr dx,2
+  add di,dx
+  mov cx,y2
+  sub cx,y1
+  inc cx
+  mov al,c
+@p:
+  StosB
+  add di,319
+  loop @p
+end;
+
+Function Sgn (I : Integer) : Integer; Assembler;
+Asm
+  Mov   AX, I
+  Or    AX, AX
+  JZ    @end
+  ShL   AX, 1
+  JC    @1
+  Mov   AX, 1
+  Jmp   @end
+@1:
+  Mov   AX, -1
+@end:
+End;
+
+Function _Abs (I : Integer) : Integer; Assembler;
+Asm
+  Mov   AX, I
+  Test  AX, 8000h
+  JZ    @end
+  Neg   AX
+@end:
+End;
+
+Procedure Line (X1,Y1,X2,Y2:integer; C : Byte);
+Var
+  SX,SY,M,N,DX1,DY1,DX2,DY2:integer;
+Begin
+  SX := X2-X1;
+  SY := Y2-Y1;
+  DX1 := Sgn (SX);
+  DY1 := Sgn (SY);
+  M := _Abs (SX);
+  N := _Abs (SY);
+  DX2 := DX1;
+  DY2 := 0;
+  If M < N then
+    Begin
+      M := _Abs (SY);
+      N := _Abs (SX);
+      DX2 := 0;
+      DY2 := DY1
+    End;
+  Asm
+    Mov   AX, 09000h
+    Mov   ES, AX
+    Mov   DI, X1
+    Mov   BX, Y1
+    ShL   BX, 6
+    Add   DI, BX
+    ShL   BX, 2
+    Add   DI, BX                                { ES:DI = ^ ­  ¯¥à¢ãî â®çªã }
+
+    Mov   AX, DY1
+    Test  AX, 8000h
+    JZ    @lb0
+    Neg   AX
+    ShL   AX, 6
+    Mov   BX, AX
+    ShL   AX, 2
+    Add   BX, AX
+    Neg   BX
+    Jmp   @lb1
+@lb0:
+    ShL   AX, 6
+    Mov   BX, AX
+    ShL   AX, 2
+    Add   BX, AX
+@lb1:
+    Add   BX, DX1
+
+    Mov   AX, DY2
+    Test  AX, 8000h
+    JZ    @lb2
+    Neg   AX
+    ShL   AX, 6
+    Mov   DX, AX
+    ShL   AX, 2
+    Add   DX, AX
+    Neg   DX
+    Jmp   @lb3
+@lb2:
+    ShL   AX, 6
+    Mov   DX, AX
+    ShL   AX, 2
+    Add   DX, AX
+@lb3:
+    Add   DX, DX2
+
+    Mov   AL, C
+    Xor   SI, SI
+    Mov   CX, M
+    Inc   CX
+@cycle:
+    Mov   ES:[DI], AL
+    Add   SI, N
+    Cmp   SI, M
+    JC    @cl1
+    Sub   SI, M
+    Add   DI, BX                                { + ‘¬¥é¥­¨¥ á«¥¤. í«¥¬¥­â  }
+    Loop  @cycle
+    Jmp   @end
+@cl1:
+    Add   DI, DX                                { + ‘¬¥é¥­¨¥ á«¥¤. â®çª¨ }
+    Loop  @cycle
+@end:
+  End
+End;
+
+
+procedure box(x1,x2,y1,y2:word;c:byte;fill:boolean);
+var i:word;
+begin
+if fill=false then begin
+lineh(x1,x2,y1,c);
+lineh(x1,x2,y2,c);
+linev(x1,y1,y2,c);
+linev(x2,y1,y2,c);
+end
+else for i:=y1 to y2 do lineh(x1,x2,i,c);
+end;
+
+
+procedure boxout(x1,x2,y1,y2:word;cf,co:byte);
+var i:word;
+begin
+{ outlines }
+lineh(x1,x2,y1,co);
+lineh(x1,x2,y2,co);
+linev(x1,y1,y2,co);
+linev(x2,y1,y2,co);
+{ wypelnienie }
+for i:=y1+1 to y2-1 do lineh(x1+1,x2-1,i,cf);
+end;
+
+
+procedure polygon(x,y:word;ii:byte;shape:poly;c:byte);
+var i:byte;
+    nx,ny,ax,ay:word;
+begin
+for i:=0 to ii do begin
+  if sizeof(shape)=i then begin
+    nx:=shape[0].x+x;
+    ny:=shape[0].y+y;
+    ax:=shape[i].x+x;
+    ay:=shape[i].y+y;
+  end else begin
+    nx:=shape[i+1].x++x;
+    ny:=shape[i+1].y+y;
+    ax:=shape[i].x+x;
+    ay:=shape[i].y+y;
+  end;
+
+  line(ax,ay,nx,ny,c);
+end;
+
+end;
+
+
+function SqrWN (X : Word) : Byte; Assembler;
+Asm
+  Mov   CX, X
+  Push  BP
+  Mov   BP, 1
+  Mov   BX, CX
+  JCXZ  @end2
+  Cmp   CX, 0FFFFH
+  JNE   @cycle
+  Mov   BX, 0FFH
+  Jmp   @end2
+@cycle:
+  Xor   DX, DX
+  Mov   AX, CX
+  Div   BX
+  Add   AX, BX
+  Shr   AX, 1
+  Mov   DI, SI
+  Mov   SI, BX
+  Mov   BX, AX
+  Inc   BP
+  Cmp   BX, SI
+  JE    @end
+  Cmp   BP, 3
+  JC    @cycle
+  Cmp   BX, DI
+  JNE   @cycle
+  Cmp   SI, BX
+  JNC   @end
+  Mov   BX, SI
+@end:
+  Mov   AX, BX
+  Mul   BX
+  Sub   AX, CX
+  Neg   AX
+  Inc   AX
+  Mov   SI, AX                  { à §­¨æ   à£ã¬¥­â  ¨ ª¢ ¤à â  ª®à­ï }
+  Inc   BX
+  Mov   AX, BX
+  Mul   BX
+  Sub   AX, CX                  { à §­¨æ   à£. ¨ ª¢ ¤à â  ã¢¥«¨ç¥­­®£® ª®à­ï }
+  Cmp   AX, SI
+  JC    @end2
+  Dec   BX
+@end2:
+  Pop   BP
+  Mov   AX, BX
+End;
+
+procedure circle(xc,yc,rc:word;cc:byte);
+begin
+  if rc=0 then begin pixel(xc,yc,cc); exit; end;
+  asm
+    push ds
+    mov cx,0
+    mov ax,rc
+    mov dx,1
+    sub dx,rc
+@do:
+    push dx
+    push $9000{ $a000 }
+    pop es
+    mov dx,yc
+    mov di,xc
+    xchg dh,dl
+    add di,dx
+    shr dx,2
+    add di,dx
+
+    {push yc+y}
+    push di
+    mov dx,ax
+    shl dx,6
+    add di,dx
+    shl dx,2
+    add di,dx
+
+    mov dl,cc
+    mov bx,cx
+    mov es:[di+bx],dl
+    not bx
+    inc bx
+    mov es:[di+bx],dl
+    pop di
+    {push yc-y}
+    push di
+    mov dx,ax
+    not dx
+    inc dx
+    shl dx,6
+    add di,dx
+    shl dx,2
+    add di,dx
+
+    mov dl,cc
+    mov bx,cx
+    mov es:[di+bx],dl
+    not bx
+    inc bx
+    mov es:[di+bx],dl
+    pop di
+    {push yc+x}
+    push di
+    mov dx,cx
+    shl dx,6
+    add di,dx
+    shl dx,2
+    add di,dx
+
+    mov dl,cc
+    mov bx,ax
+    mov es:[di+bx],dl
+    not bx
+    inc bx
+    mov es:[di+bx],dl
+    pop di
+    {push yc-x}
+    push di
+    mov dx,cx
+    not dx
+    inc dx
+    shl dx,6
+    add di,dx
+    shl dx,2
+    add di,dx
+
+    mov dl,cc
+    mov bx,ax
+    mov es:[di+bx],dl
+    not bx
+    inc bx
+    mov es:[di+bx],dl
+    pop di
+    pop dx
+
+    inc cx
+    cmp dx,0
+    jl @subd
+    dec ax
+    mov bx,cx
+    sub bx,ax
+    shl bx,1
+    add dx,bx
+    inc dx
+    jmp @cont
+@subd:
+    mov bx,cx
+    shl bx,1
+    add dx,bx
+    inc dx
+@cont:
+    cmp cx,ax
+    jna @do
+    pop ds
+  end;
+end;
+
+procedure CircleFill(xc,yc,rc:word;cc:byte);
+begin
+  if rc=0 then begin pixel(xc,yc,cc); exit; end;
+  asm
+    push ds
+    mov cx,0
+    mov ax,rc
+    mov dx,1
+    sub dx,rc
+@do:
+    push dx
+    les di,scr
+    mov dx,yc
+    mov di,xc
+    xchg dh,dl
+    add di,dx
+    shr dx,2
+    add di,dx
+
+    {push yc+y}
+    push di
+    mov dx,ax
+    shl dx,6
+    add di,dx
+    shl dx,2
+    add di,dx
+    sub di,cx
+
+    push ax
+    push cx
+    shl cx,1
+    inc cx
+    mov al,cc
+    rep stosB
+    pop cx
+    pop ax
+    pop di
+    {push yc-y}
+    push di
+    mov dx,ax
+    not dx
+    inc dx
+    shl dx,6
+    add di,dx
+    shl dx,2
+    add di,dx
+    sub di,cx
+
+    push ax
+    push cx
+    shl cx,1
+    inc cx
+    mov al,cc
+    rep stosB
+    pop cx
+    pop ax
+    pop di
+    {push yc+x}
+    push di
+    mov dx,cx
+    shl dx,6
+    add di,dx
+    shl dx,2
+    add di,dx
+    sub di,ax
+
+    push ax
+    push cx
+    mov cx,ax
+    shl cx,1
+    inc cx
+    mov al,cc
+    rep stosB
+    pop cx
+    pop ax
+    pop di
+    {push yc-x}
+    push di
+    mov dx,cx
+    not dx
+    inc dx
+    shl dx,6
+    add di,dx
+    shl dx,2
+    add di,dx
+    sub di,ax
+
+    push ax
+    push cx
+    mov cx,ax
+    shl cx,1
+    inc cx
+    mov al,cc
+    rep stosB
+    pop cx
+    pop ax
+    pop di
+
+    pop dx
+
+    inc cx
+    cmp dx,0
+    jl @subd
+    dec ax
+    mov bx,cx
+    sub bx,ax
+    shl bx,1
+    add dx,bx
+    inc dx
+    jmp @cont
+@subd:
+    mov bx,cx
+    shl bx,1
+    add dx,bx
+    inc dx
+@cont:
+    cmp cx,ax
+    jna @do
+    pop ds
+  end;
+end;
+
+
+procedure elipsa (x,y,a,b:integer;c:word);
+  var StepX,StepY,i : Integer;
+      K : Real;
+  begin
+   K:= b/a;
+   for i:=0 to a - (a shr 2) do begin
+    StepX:=Round(Sqrt(Sqr(a)-Sqr(i)));
+    StepY:=Round(K*i);
+    Pixel(x+StepX,y+StepY,c);
+    Pixel(x-StepX,y+StepY,c);
+    Pixel(x+StepX,y-StepY,c);
+    Pixel(x-StepX,y-StepY,c);
+   end;
+   for i:=0 to a - (a shr 2) do begin
+    StepY:=Round(K*Sqrt(Sqr(a)-Sqr(i)));
+    Pixel(x+i,y+StepY,c);
+    Pixel(x-i,y+StepY,c);
+    Pixel(x+i,y-StepY,c);
+    Pixel(x-i,y-StepY,c);
+   end;
+end;
+
+
+{                             |
+                              |
+        LADOWANIE bmp         |
+                              |
+                              }
+
+
+function SwapNibble(B : Byte) : Byte;
+    {-Swap the high and low nibbles of B: SwapNibble($F0) returns $0F.}
+    inline(
+      $58/                     {pop ax     ;AL = B}
+      $88/$C4/                 {mov ah,al  ;AH = B}
+      $B9/$04/$00/             {mov cx,4   ;4 bits/nibble}
+                               {Start:}
+      $D0/$CC/                 {ror ah,1   ;rotate rightmost bit of AH}
+      $D0/$D8/                 {rcr al,1   ;into leftmost bit of AL}
+      $E2/$FA);                {loop Start ;do it four times}
+
+function OpenFile : Boolean;
+  begin
+    FileOpen := False;
+    OpenFile := False;
+    Assign(F, BitmapName);
+    Reset(F, 1);
+    if IoResult <> 0 then Exit;
+    FileOpen := True;
+    OpenFile := True;
+  end;
+
+function CloseFile : Boolean;
+  begin
+    FileOpen := False;
+    CloseFile := False;
+    Close(F);
+    if IoResult <> 0 then Exit;
+    CloseFile := True;
+  end;
+
+function ReadBMPFileHead : Boolean;
+  begin
+    ReadBMPFileHead := False;
+    BlockRead(F, bfh, SizeOf(bfh));
+    if (IoResult <> 0) or
+       (bfh.bfType <> $4D42) then Exit;
+    Width := bfh.biWidth;
+    Height := bfh.biHeight;
+    BitCount := bfh.biBitCount;
+    Width_R := Width;
+    ReadBMPFileHead := True;
+  end;
+
+function ReadPalette16 : Boolean;
+  var C : Byte;
+  begin
+    ReadPalette16 := False;
+    BlockRead(F, Pal16, SizeOf(Pal16));
+    if IoResult <> 0 then Exit;
+    for C := 0 to 15 do
+      begin
+        Pal16[C].R := Pal16[C].R shr 2;
+        Pal16[C].G := Pal16[C].G shr 2;
+        Pal16[C].B := Pal16[C].B shr 2;
+      end;
+    ReadPalette16 := True;
+  end;
+
+function ReadPalette256 : Boolean;
+  var C : Byte;
+  begin
+    ReadPalette256 := False;
+    BlockRead(F, Pal256, SizeOf(Pal256));
+    if IoResult <> 0 then Exit;
+    for C := 0 to 255 do
+      begin
+        Pal256[C].R := Pal256[C].R shr 2;
+        Pal256[C].G := Pal256[C].G shr 2;
+        Pal256[C].B := Pal256[C].B shr 2;
+      end;
+    ReadPalette256 := True;
+  end;
+
+procedure SetPalette256;
+  const
+    RED = 0;
+    GREEN = 1;
+    BLUE = 2;
+  type
+    Pal_array = array[0..255, RED..BLUE] of Byte;
+  var
+    Palette256 : Pal_array;
+    Reg : Registers;
+    i : Byte;
+  begin
+    for i := 0 to 255 do
+      begin
+        Palette256[i, RED]   := Pal256[i].R;
+        Palette256[i, GREEN] := Pal256[i].G;
+        Palette256[i, BLUE]  := Pal256[i].B;
+      end;
+    Reg.ah := $10;                { Set DAC Call }
+    Reg.al := $12;                { set a block of DAC registers }
+    Reg.bx := 0;                  { first DAC register number }
+    Reg.cx := 255;                { number of registers to update }
+    Reg.dx := Ofs(Palette256);    { offset of block }
+    Reg.es := Seg(Palette256);    { segment of block }
+    Intr($10, Reg);               { call interrupt }
+  end;
+
+function SetPalette16 : Boolean;
+  const
+    RED = 0;
+    GREEN = 1;
+    BLUE = 2;
+  type
+    Pal_array = array[0..15, RED..BLUE] of Byte;
+  var
+    Palette16 : Pal_array;
+    Reg : Registers;
+    i : Byte;
+  begin
+    for i := 0 to 15 do
+      begin
+        Palette16[i, RED]   := Pal16[i].R;
+        Palette16[i, GREEN] := Pal16[i].G;
+        Palette16[i, BLUE]  := Pal16[i].B;
+      end;
+    Reg.ah := $10;                { Set DAC Call }
+    Reg.al := $12;                { set a block of DAC registers }
+    Reg.bx := 0;                  { first DAC register number }
+    Reg.cx := 16;                 { number of registers to update }
+    Reg.dx := Ofs(Palette16);     { offset of block }
+    Reg.es := Seg(Palette16);     { segment of block }
+    Intr($10, Reg);               { call interrupt }
+  end;
+
+function ShowImage4 : Boolean;
+  var
+    Px, C0, C1 : Byte;
+    Lin4 : array[0..1023] of Byte;
+  begin
+    ShowImage4 := False;
+    Seek(F, bfh.bfOffBits);
+    if (Width mod 8) <> 0 then
+      while (Width mod 8) <> 0 do Inc(Width);
+
+    W2 := (Width_R-1) div 2;
+    for yt := Height-1 downto 0 do
+      begin
+        BlockRead(F, Lin4, Width div 2);
+        for xt := 0 to W2 do
+          begin
+            Px := Lin4[xt];
+            C0 := Px shr 4;
+            Px := SwapNibble(Px);
+            C1 := Px shr 4;
+            Pixel(Xstart+xt*2, Ystart+yt, C0);
+            Pixel(Xstart+xt*2+1, Ystart+yt, C1);
+          end;
+      end;
+    ShowImage4 := True;
+  end;
+
+function ShowImage8 : Boolean;
+  type
+    TLin = record
+      X, Y : Word;
+      Data : array[0..1023] of Byte;
+    end;
+  var
+    SizeP : Word;
+    Lin8 : ^TLin;
+  begin
+    ShowImage8 := False;
+    if (Width mod 4) <> 0 then
+      while (Width mod 4) <> 0 do Inc(Width);
+    Seek(F, bfh.bfOffBits);
+    SizeP := ImageSize(0, 0, 1028, 0);
+    GetMem(Lin8, SizeP);
+    Lin8^.X := Width_R-1;
+    Lin8^.Y := 0;
+    for yt := Height-1 downto 0 do
+      begin
+        BlockRead(F, Lin8^.Data, Width);
+        PutImage(Xstart, Ystart+yt, Lin8^, NormalPut);
+      end;
+    FreeMem(Lin8, SizeP);
+    ShowImage8 := True;
+  end;
+
+procedure ShowPalette16;
+  var x : Byte;
+  begin
+    for x := 0 to 15 do
+      begin
+        SetFillStyle(SolidFill, x);
+        Bar(x*20, 0, (x+1)*20, 20);
+      end;
+  end;
+
+procedure ShowPalette256;
+  var x, y, c : Byte;
+  begin
+    c := 0;
+    for y := 0 to 15 do
+      for x := 0 to 15 do
+        begin
+          SetFillStyle(SolidFill, c);
+          Bar(x*20, y*20, (x+1)*20, (y+1)*20);
+          Inc(c);
+        end;
+  end;
+
+procedure FadeOut16;
+  var i, k : Byte;
+  begin
+    ReadKey;
+    for k := 0 to 63 do
+      begin
+        for i := 0 to 15 do
+          begin
+            if Pal16[i].R > 0 then Dec(Pal16[i].R);
+            if Pal16[i].G > 0 then Dec(Pal16[i].G);
+            if Pal16[i].B > 0 then Dec(Pal16[i].B);
+          end;
+        SetPalette16;
+        Delay(20);
+      end;
+  end;
+
+procedure FadeOut256;
+  var i, k : Byte;
+  begin
+    ReadKey;
+    for k := 0 to 63 do
+      begin
+        for i := 0 to 255 do
+          begin
+            if Pal256[i].R > 0 then Dec(Pal256[i].R);
+            if Pal256[i].G > 0 then Dec(Pal256[i].G);
+            if Pal256[i].B > 0 then Dec(Pal256[i].B);
+          end;
+        SetPalette256;
+        Delay(20);
+      end;
+  end;
+
+function ShowBitMapImage(Name : String; X, Y : Word) : Integer;
+  begin
+    ShowBitMapImage := BmpUnknownError;
+    BitmapName := Name;
+    ShowBitMapImage := BmpFileNotFound;
+    Xstart := X;
+    Ystart := Y;
+    if not OpenFile then Exit;
+    if not ReadBMPFileHead then Exit;
+    case BitCount of
+      4 : begin
+            ReadPalette16;
+            SetPalette16;
+            ShowImage4;
+          end;
+      8 : begin
+            ReadPalette256;
+            SetPalette256;
+            ShowImage8;
+          end;
+    end;
+    if not CloseFile then Exit;
+    ShowBitMapImage := BmpOk;
+  end;
+
+
+
+{                             |
+                              |
+         M Y S Z K A          |
+                              |
+                              }
+
+
+
+
+
+
+
+function InitMouse;
+begin
+  Regs.AX:=0;
+  Intr($33,Regs);
+  if Regs.AX=0 then InitMouse:=True else InitMouse:=False;
+end;
+
+procedure MShow;
+begin
+  Regs.AX:=1;
+  Intr($33,Regs);
+end;
+
+procedure MHide;
+begin
+  Regs.AX:=2;
+  Intr($33,Regs);
+end;
+
+procedure GetPos;
+begin
+  Regs.AX:=3;
+  Intr($33,Regs);
+  xm:=Regs.CX;
+  ym:=Regs.DX;
+  Button:=Regs.BX;
+end;
+
+procedure GetPos13;
+begin
+  Regs.AX:=3;
+  Intr($33,Regs);
+  xm:=Regs.CX shr 1;
+  ym:=Regs.DX;
+  Button:=Regs.BX;
+end;
+
+function mx:integer;
+begin
+  Regs.AX:=3;
+  Intr($33,Regs);
+  mx:=Regs.CX;
+  Button:=Regs.BX;
+end;
+
+function my:integer;
+begin
+  Regs.AX:=3;
+  Intr($33,Regs);
+  my:=Regs.DX;
+  Button:=Regs.BX;
+end;
+
+procedure SetPos(x,y:word);
+begin
+  Regs.AX:=4;
+  Regs.CX:=x;
+  Regs.DX:=y;
+  Intr($33,Regs);
+end;
+
+procedure LimitX(min,max:word);
+begin
+  Regs.AX:=7;
+  Regs.CX:=min;
+  Regs.DX:=max;
+  intr($33,Regs);
+end;
+
+procedure LimitX13(min,max:word);
+begin
+  Regs.AX:=7;
+  Regs.CX:=min shl 1;
+  Regs.DX:=max shl 1;
+  intr($33,Regs);
+end;
+
+procedure LimitY(min,max:word);
+begin
+  Regs.AX:=8;
+  Regs.CX:=min;
+  Regs.DX:=max;
+  intr($33,Regs);
+end;
+
+procedure Old;
+begin
+  sxm:=xm;
+  sym:=ym;
+end;
+
+
+function inside(x1,y1,x2,y2,x,y: integer): boolean;
+  begin
+    inside:= (x>=x1) and (x<=x2) and
+             (y>=y1) and (y<=y2);
+  end;
+
+(* This Procedure is to return the
+mouse information
+Bu = mouse button
+Ro = the y position of the mouse cursor
+Co = the x position of the mouse cursor
+
+BTNS 0-no 1-left 2-right 3-both *)
+function mousebtn:word;
+var B:word;
+begin
+asm
+MOV AX,$03
+INT $33
+MOV B,BX{
+MOV C,CX
+MOV R,DX}
+end;
+mousebtn:=B;
+end;
+
+
+
+
+{                             |
+                              |
+        KLAWIATURA            |
+                              |
+                              }
+
+
+
+
+{$F+}
+procedure New_Key_Int;interrupt;assembler;
+asm
+  sti
+  in al,60h
+  xor ah,ah
+  {mov raw_key, ax}
+  cmp ax,128
+  ja @UpKey
+  {Pressed}
+  lea di,keys
+  add di,ax
+  mov al,1
+  mov ds:[di],al
+  jmp @Endzik
+@UpKey:
+  sub ax,128
+  lea di,keys
+  add di,ax
+  mov al,0
+  mov ds:[di],al
+@Endzik:
+  in al,61h
+  or al, 82h
+  out 61h,al
+  and al,7fh
+  out 61h,al
+  mov al,20h
+  out 20h,al
+end;
+{$F-}
+
+procedure InitKey;
+begin
+  GetIntVec($9,Int9hSave);
+  SetIntVec($9,Addr(New_key_int));
+end;
+
+procedure KillKey;
+begin
+  SetIntVec($9,Int9hSave);
+end;
+
+
+
+
+begin
+
+DrawBase:=$9000;
+
+end.

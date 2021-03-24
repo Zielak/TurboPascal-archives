@@ -1,0 +1,41 @@
+   ### KOLORY TRYPU 16 ###
+Black     0
+Blue      1
+Green     2
+Cyan      3
+Red       4
+Magenta   5
+Brown     6
+LightGray 7
+DarkGray      8
+LightBlue     9
+LightGreen   10
+LightCyan    11
+LightRed     12
+LightMagenta 13
+Yellow       14
+White        15
+
+   ### WYPE£NIENIA ###
+ Sta³a          - Wart. - Meaning :
+================ì=======ì=============================
+ EmptyFill      -    0  - u¿ywa koloru t³a
+ SolidFill      -    1  - u¿ywa koloru rysowania
+ LineFill       -    2  - --- 
+ LtSlashFill    -    3  - /// 
+ SlashFill      -    4  - /// grube
+ BkSlashFill    -    5  - \\\ grube
+ LtBkSlashFill  -    6  - \\\ 
+ HatchFill      -    7  - Light hatch fill
+ XHatchFill     -    8  - Heavy cross hatch
+ InterleaveFill -    9  - Interleaving line
+ WideDotFill    -   10  - rzadsze wykropkowanie
+ CloseDotFill   -   11  - gêstsze wykropkowanie
+ UserFill       -   12  - zdefiniowane przez u¿ytkownika
+
+   ### TYPY LINII ###
+SolidLn    0	jednolita (normalna)
+DottedLn   1	kropkowana
+CenterLn   2	œrodkowana
+DashedLn   3	kreskowana
+UserBitLn  4	u¿ytkownika

@@ -1,0 +1,118 @@
+program InterwebzDefence;
+
+uses crt,zvga,idengin; { 320x200x256 }
+
+var q:char;
+    tmpstr:string;
+
+BEGIN
+
+(*    INICJACJA   *)
+initvga;
+InitKey;
+initmouse;
+cls(0);
+
+repeat
+initmenu;
+
+initgame;
+REPEAT
+
+{ czyszczenie obszaru gry }
+cls(0);
+drawhud;
+
+
+{VGAText(100,15,8,'2380 lines of code! :O',0);}
+
+
+(*                 }
+                   }
+     TWORZENIE     }
+                   }
+                  *)
+if countint<50 then begin
+
+
+
+
+
+end;
+
+(*                 }
+                   }
+   KALKULACJE      }
+                   }
+                  *)
+{ ruszanie gracza }
+if (keys[75]=true) and (gracz.x>45) then gracz.x:=gracz.x-1;
+if (keys[77]=true) and (gracz.x<275) then gracz.x:=gracz.x+1;
+{ odliczanie }
+if (counting=true) and (countint>0) then countint:=countint-1;
+
+
+
+{ shooting }
+if gracz.shooting=false then
+if (mousebtn=1) or (mousebtn=3) then shoot;
+
+if gracz.shoottime>0 then gracz.shoottime:=gracz.shoottime-1;
+if gracz.shoottime=0 then gracz.shooting:=false;
+
+movebullets;
+checkbullets;
+
+if countint>0 then countDown;
+
+(*                 }
+                   }
+       BUFOR       }
+                   }
+                  *)
+str(gracz.shoottime, tmpstr);
+vgatext(35,10,eorange,tmpstr,0);
+str(gracz.shootrate, tmpstr);
+vgatext(35,20,eorange+1,tmpstr,0);
+
+updatehudpal;
+drawenemies;
+drawbullets;
+drawcur;
+drawscore;
+drawhp;
+
+
+drawPlayer;
+drawshoottime;
+if mousebtn=1 then box(40,50,50,60,5,true)
+else
+if mousebtn=2 then box(50,60,50,60,5,true)
+else
+if mousebtn=3 then box(40,60,50,60,5,true);
+
+(*                 }
+                   }
+   zrzut buforu    }
+                   }
+                  *)
+drawpage;
+czekaj;
+if mousebtn>1 then begin czekaj; czekaj; end;
+
+
+
+
+
+
+until keys[1]=true;
+
+
+until keys[1]=true;
+
+
+LimitX(0,639);
+LimitY(0,399);
+closevga;
+
+end.

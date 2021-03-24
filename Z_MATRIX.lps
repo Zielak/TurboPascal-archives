@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <Version Value="9"/>
+    <BuildModes Active="Default"/>
+    <Units Count="1">
+      <Unit0>
+        <Filename Value="Z_MATRIX.PAS"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="matrix"/>
+        <IsVisibleTab Value="True"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="1"/>
+        <UsageCount Value="20"/>
+      </Unit0>
+    </Units>
+    <JumpHistory Count="0" HistoryIndex="-1"/>
+  </ProjectSession>
+  <EditorMacros Count="0"/>
+</CONFIG>

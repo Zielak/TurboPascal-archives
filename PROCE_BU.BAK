@@ -1,0 +1,29 @@
+Program emoty;
+uses CRT;
+var i,x,y:byte;
+
+procedure pokaz(a,x,y:byte);
+var j:byte;
+begin
+     gotoXY(x,y);
+    FOR j:=1 to a do
+    write ('xD');
+end;
+
+
+begin
+    clrscr;
+    highVideo;
+    writeln('ile buziek?');
+    readln(i);
+    writeln('w jakiej pozycji x?');
+    readln(x);
+    writeln('w jakiej pozycji y?');
+    readln(y);
+
+    clrscr;
+
+    pokaz(i,x,y);
+    repeat
+    until KeyPressed;
+End.

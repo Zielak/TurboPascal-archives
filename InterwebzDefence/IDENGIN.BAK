@@ -1,0 +1,1034 @@
+unit idengin;
+
+interface
+
+type
+  point = record
+    x,y:integer;
+  end;
+
+  {poly = array[0..40] of point;}
+
+
+  cannon = record
+    rotation:single;
+    x,y:word;
+    length:byte;
+    cannx,canny:integer;   { pozycja kierunkowa dziala }
+    shooting:boolean;      { czy strzela }
+    shootrate:word;        { szybkosc strzalu STAT }
+    shoottime:word;        { czas do nast. strzalu }
+  end;
+
+  bul = record
+    exist:boolean;
+    rotation,x,y,spd:single;
+    power:word;
+    owner:char;            { p:player, e:enemy }
+    r,c:byte;
+  end;
+  bullets=array[0..300] of bul;
+
+
+  (*enemypoly = record
+    pol:poly;
+    c,i:byte;           { kolor polygona i rzeczywista ilosc punktow }
+  end;  *)
+
+  enemyfunc = record
+    x1,y1,x2,y2,r:shortint;
+    c,typ:byte;
+  end;
+
+  enemy = record
+    exist:boolean;
+    x,y:single;
+    hp:byte;
+    maxpoints:integer;
+    xs,ys:single;
+    {part1,part2,part3:enemypoly;}
+    func1,func2,func3,func4,func5,func6:enemyfunc;
+    r:byte;     { wielkosc }
+  end;
+
+  enemyfile = file of enemy;
+
+
+const
+ered = 11;
+eorange = 14;
+eyellow = 17;
+elime = 20;
+egreen = 23;
+ebluegreen = 26;
+elightgreen = 29;
+eblue = 32;
+eviolet = 35;
+epink = 38;
+eblack = 40;
+
+
+var
+patch:string;
+f0:enemyfile;
+
+x,y:integer;
+key:char;
+gracz:cannon;
+
+{ zmienne statystyczne }
+
+enemies:array[0..20] of enemy;       { lista typow wrogow }
+lvlenemies:array[0..50,0..5] of byte;{ lista id 5max wrogow na kazdy poziom }
+lvltypes:array[0..50] of byte;       { ilosc typow wrogow na kazdy lvl }
+enemiesfreq:array[0..50] of byte;    { wartosc do funckji random dla tworzenia przeciwnikow }
+eos:array[0..50] of enemy;           { enemies on stage }
+eosint,maxeos:byte;
+
+
+buls:bullets;
+cann:array[0..9] of point;
+
+
+gamestarted,            { czy gra sie rozpoczela }
+playinglvl,             { czy juz gramy, strzelamy do przeciwnikow }
+counting                { czy odmierza czas na poczatku poziomu }
+:boolean;
+countint:word;          { liczenie od 400 w dol, 200=3, 150=2, 100=1, 50=go }
+lvl,hp,maxbul:byte;
+score:longint;
+
+hpdown:boolean;
+
+
+
+{ ###  WYKAZ PALETY  ### }{
+
+r,g,b : 0-63
+
+index    info
+________ __________________
+0        czarny
+1        bialy
+2-4      HUD (zmienia sie wraz z poziomem zycia)
+5        Kursor
+6-9      6 lufa, 7,8,9 odcienie kola
+10-44    kolory przeciwnikow
+45-46    kolory paska shoottime
+47-57    draw 3,2,1, GO!! paleta zmieniana dynamicznie
+
+}
+
+(* ######################################## *)
+
+(* ########   PROCEDURY GRAFICZNE ######### *)
+
+(* ######################################## *)
+
+procedure updatehudpal;                  { uaktualnia kolorystyke w HUD }
+procedure drawhud;
+procedure drawdigit(num:byte;dx,dy:word;sideleft:boolean);
+procedure drawscore;
+procedure drawhp;
+procedure drawcur;
+
+procedure drawPlayer;
+procedure showrotation;
+
+procedure drawEnemies;
+
+procedure drawBullets;
+procedure drawshoottime;
+
+
+(* ######################################## *)
+
+(* ######  PROCEDURY OBLICZENIOWE  ######## *)
+
+(* ######################################## *)
+
+function real2int(r:single):integer;
+
+procedure initmenu;
+
+procedure initgame;
+procedure endgame;
+
+procedure countDown;
+procedure preparenextlvl;
+
+procedure addenemy;
+procedure moveenemies;
+procedure removeenemy(id:byte);
+procedure checkCol;
+
+procedure shoot;
+procedure movebullets;
+procedure checkbullets;
+procedure removebullet(id:byte);
+
+
+
+
+implementation
+
+uses zvga,crt;
+
+
+
+
+
+procedure loadenemies;
+begin
+assign(f0,'F:\INTERW~1\img\niema.dat');
+reset(f0);
+seek(f0, 0);
+read(f0, enemies[1]);
+read(f0, enemies[0]);
+end;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function real2int(r:single):integer;
+var s:string;
+    e,i:integer;
+
+begin
+str(r:2:0,s);
+val(s,e,i);
+real2int:=e;
+end;
+
+
+
+
+procedure updatehudpal;
+begin
+     {   HUD  }
+     setColor(2,real2int(-0.14*hp+14),hp div 7,0);
+     setColor(3,real2int(-0.50*hp+50),real2int(hp/1.7),0);
+     setColor(4,real2int(-0.45*hp+60)+20,hp div 2+20,63);
+     { KURSOR }
+     setColor(5,63,63,63);
+end;
+
+
+
+{ #################### }
+(* PROCEDURY MALUJACE *)
+
+procedure drawhud;
+begin
+linev(30,0,maxy,3);
+linev(290,0,maxy,3);
+end;
+
+
+procedure drawdigit(num:byte;dx,dy:word;sideleft:boolean);
+
+    procedure digitbg;
+    var i,j,k:byte;
+    begin
+      box(dx+2,dx+6,dy+2,dy+6,2,true);
+      box(dx+10,dx+14,dy+2,dy+6,2,true);
+
+    end;
+
+
+    { ELEMENTY JEDNEJ CYFRY }
+    procedure topl;
+    begin
+      lineh(dx+1,dx+3,dy,3);
+      lineh(dx+2,dx+6,dy+1,3);
+      pixel(dx+7,dy,3);
+      lineh(dx+4,dx+6,dy,4);
+    end;
+
+    procedure topr;
+    begin
+      lineh(dx+9,dx+11,dy,3);
+      lineh(dx+10,dx+14,dy+1,3);
+      pixel(dx+15,dy,3);
+      lineh(dx+12,dx+14,dy,4);
+    end;
+
+    procedure left;
+    begin
+      linev(dx,dy+1,dy+7,3);
+      linev(dx+1,dy+5,dy+6,3);
+      linev(dx+1,dy+2,dy+4,4);
+    end;
+
+    procedure mid;
+    begin
+      linev(dx+7,dy+2,dy+6,3);
+      linev(dx+8,dy+1,dy+7,3);
+      linev(dx+9,dy+5,dy+6,3);
+      linev(dx+9,dy+2,dy+4,4);
+    end;
+
+    procedure righ;
+    begin
+      linev(dx+15,dy+2,dy+6,3);
+      linev(dx+16,dy+5,dy+7,3);
+      pixel(dx+16,dy+1,3);
+      linev(dx+16,dy+2,dy+4,4);
+    end;
+
+    procedure botl;
+    begin
+      lineh(dx+2,dx+3,dy+7,3);
+      lineh(dx+1,dx+6,dy+8,3);
+      pixel(dx+7,dy+8,3);
+      lineh(dx+4,dx+6,dy+7,4);
+    end;
+
+    procedure botr;
+    begin
+      lineh(dx+10,dx+11,dy+7,3);
+      lineh(dx+9,dx+15,dy+8,3);
+      lineh(dx+12,dx+14,dy+7,4);
+    end;
+
+
+begin
+
+box(dx,dx+16,dy,dy+8,0,true);
+{digitbg;}
+
+if sideleft=false then case num of
+  1: begin botl; botr; end;
+  2: begin left; topl; mid;  botr; righ; end;
+  3: begin left; botl; mid;  botr; righ; end;
+  4: begin botl; mid;  botr; topr; end;
+  5: begin left; botl; mid;  topr; righ; end;
+  6: begin left; topl; botl; mid;  topr; righ; end;
+  7: begin botl; botr; righ; end;
+  8: begin left; topl; botl; mid;  topr; botr; righ; end;
+  9: begin left; botl; mid;  topr; botr; righ; end;
+  0: begin left; topl; botl; topr; botr; righ; end;
+end
+else
+if sideleft=true then case num of
+  1: begin topl; topr; end;
+  2: begin left; topl; mid;  botr; righ; end;
+  3: begin left; topl; mid;  topr; righ; end;
+  4: begin botl; topl; mid;  topr; end;
+  5: begin left; botl; mid;  topr; righ; end;
+  6: begin left; botl; mid;  topr; botr; righ; end;
+  7: begin left; topl; topr; end;
+  8: begin left; topl; botl; mid;  topr; botr; righ; end;
+  9: begin left; botl; topl; mid;  topr; righ; end;
+  0: begin left; topl; botl; topr; botr; righ; end;
+end;
+end;
+
+
+procedure drawscore;
+var tmp,spaces:string[1];
+    int,tmpi:integer;
+    tmps:string[10];
+    len,spaceb:byte;
+    i:byte;
+begin
+  str(score, tmps);
+  len:=length(tmps);
+  for i:=len downto 1 do begin
+      val(copy(tmps,i,1),tmpi,int);
+      drawdigit(tmpi,10,100-10*i,true);
+  end;
+  {drawdigit(12,10,10+10*(i-1),true);}
+end;    { koniec procedury DRAW SCORE }
+
+
+procedure drawhp;
+var tmp:string[1];
+    int,tmpi:integer;
+    tmps:string[3];
+    len:byte;
+    i:byte;
+    begx,begy:word;
+begin
+  begx:=296;
+  begy:=30;
+  str(hp, tmps);
+  len:=length(tmps);
+  if len=3 then begin
+     { pierwszy znak od gory }
+     val(copy(tmps,1,1),tmpi,int);
+     drawdigit(tmpi,begx,begy,false);
+     { DRUGI znak od gory }
+     val(copy(tmps,2,1),tmpi,int);
+     drawdigit(tmpi,begx,10+begy,false);
+     { TRZECI znak od gory }
+     val(copy(tmps,3,1),tmpi,int);
+     drawdigit(tmpi,begx,20+begy,false);
+  end else if len=2 then begin
+     { pierwszy znak od gory }
+     drawdigit(88,begx,begy,false);
+     { DRUGI znak od gory }
+     val(copy(tmps,1,1),tmpi,int);
+     drawdigit(tmpi,begx,10+begy,false);
+     { TRZECI znak od gory }
+     val(copy(tmps,2,1),tmpi,int);
+     drawdigit(tmpi,begx,20+begy,false);
+  end else if len=1 then begin
+     { pierwszy znak od gory }
+     drawdigit(88,begx,begy,false);
+     { DRUGI znak od gory }
+     drawdigit(88,begx,10+begy,false);
+     { TRZECI znak od gory }
+     val(copy(tmps,1,1),tmpi,int);
+     drawdigit(tmpi,begx,20+begy,false);
+  end;
+
+end;    { koniec procedury DRAW HEALTH }
+
+
+
+
+
+procedure drawcur;
+var x,y:word;
+begin
+x:=mx;
+y:=my;
+pixel(x,y,5);
+
+lineh(x-7,x-3,y-7,5);
+lineh(x+3,x+7,y-7,5);
+
+linev(x+7,y-7,y-3,5);
+linev(x+7,y+3,y+7,5);
+
+lineh(x+3,x+7,y+7,5);
+lineh(x-7,x-3,y+7,5);
+
+linev(x-7,y+3,y+7,5);
+linev(x-7,y-7,y-3,5);
+end;
+
+
+
+
+
+procedure drawPlayer;
+var a,b:real;
+    i:shortint;
+begin
+a:=gracz.x-mx;
+b:=gracz.y-my;
+if b<>0 then
+  gracz.rotation := arctan(a/b)
+else
+  if a<0 then
+    gracz.rotation := pi+(pi/2)
+  else
+    gracz.rotation := pi-(pi/2)
+;
+
+if b<0 then gracz.cannx:=real2int(sin(gracz.rotation)*gracz.length)+gracz.x
+else gracz.cannx:=-real2int(sin(gracz.rotation)*gracz.length)+gracz.x;
+
+
+if b<0 then gracz.canny:=real2int(cos(gracz.rotation)*gracz.length)+gracz.y
+else gracz.canny:=-real2int(cos(gracz.rotation)*gracz.length)+gracz.y;
+
+
+{ RYSOWANIE DZIALA }
+
+
+
+{ kalkulacja rotacji kazdego z punktow dzialka }
+
+if b<0 then cann[0].x:=real2int(sin(gracz.rotation+5/30)*gracz.length)+gracz.x
+else cann[0].x:=-real2int(sin(gracz.rotation+5/30)*gracz.length)+gracz.x;
+
+if b<0 then cann[0].y:=real2int(cos(gracz.rotation+5/30)*gracz.length)+gracz.y
+else cann[0].y:=-real2int(cos(gracz.rotation+5/30)*gracz.length)+gracz.y;
+
+{ point 2 }
+if b<0 then cann[1].x:=real2int(sin(gracz.rotation-5/30)*gracz.length)+gracz.x
+else cann[1].x:=-real2int(sin(gracz.rotation-5/30)*gracz.length)+gracz.x;
+
+if b<0 then cann[1].y:=real2int(cos(gracz.rotation-5/30)*gracz.length)+gracz.y
+else cann[1].y:=-real2int(cos(gracz.rotation-5/30)*gracz.length)+gracz.y;
+
+{ point 3 aka bullet }
+if b<0 then cann[2].x:=real2int(sin(gracz.rotation+1/30)*gracz.length)+gracz.x
+else cann[2].x:=-real2int(sin(gracz.rotation+1/30)*gracz.length)+gracz.x;
+
+if b<0 then cann[2].y:=real2int(cos(gracz.rotation-1/30)*gracz.length)+gracz.y
+else cann[2].y:=-real2int(cos(gracz.rotation-1/30)*gracz.length)+gracz.y;
+
+
+line(gracz.x, gracz.y, cann[0].x, cann[0].y, 6);
+line(cann[0].x, cann[0].y, cann[1].x, cann[1].y, 6);
+line(cann[1].x, cann[1].y, gracz.x, gracz.y, 6);
+
+circlefill(gracz.x, gracz.y, 9, 7);
+circlefill(gracz.x+2, gracz.y-2, 6, 8);
+circlefill(gracz.x+4, gracz.y-3, 4, 9);
+box(gracz.x-9, gracz.x+9, gracz.y+3, gracz.y+8, 7, true);
+box(gracz.x-2, gracz.x+9, gracz.y+3, gracz.y+7, 8, true);
+box(gracz.x+2, gracz.x+9, gracz.y+3, gracz.y+6, 9, true);
+box(gracz.x-9, gracz.x+9, gracz.y+3, gracz.y+8, 6, false);
+
+end;
+
+
+
+procedure showrotation;
+var {------------}
+    tmpr:single;
+    tmps:string;
+
+begin
+
+tmpr:=gracz.rotation;
+str(tmpr:2:3,tmps);
+
+VGAText(50,50,10,tmps,0);
+
+end;
+
+
+
+
+
+procedure shoot;
+var i:byte;
+begin
+
+CircleFill(cann[2].x,cann[2].y,10,eblack+4);
+
+for i:=0 to maxbul do
+if buls[i].exist<>true then break;
+
+buls[i].exist:=true;
+buls[i].x:=cann[2].x;
+buls[i].y:=cann[2].y;
+buls[i].spd:=2;
+buls[i].rotation:=gracz.rotation;
+buls[i].power:=1;
+buls[i].owner:='p';
+buls[i].c:=eblue+1;
+buls[i].r:=2;
+
+gracz.shooting:=true;
+gracz.shoottime:=gracz.shootrate;
+
+end;
+
+procedure drawshoottime;
+var i:word;
+    s:string;
+begin
+
+i:=real2int(gracz.shoottime/gracz.shootrate*10);
+str(i, s);
+vgatext(35,30,eorange-1,s,0);
+if i>0 then begin
+  {box(gracz.x-i,gracz.x+i,gracz.y+5,gracz.y+8,ered,true);}
+  box(gracz.x+12,gracz.x+14,gracz.y-i,gracz.y,ered,true);
+  if i>2 then linev(gracz.x+12,gracz.y-i,gracz.y-2,45);
+  lineh(gracz.x+12, gracz.x+14, gracz.y-i,ered+1);
+  lineh(gracz.x+12, gracz.x+14, gracz.y,46);
+end;
+
+
+end;
+
+
+
+
+procedure drawspark(x,y:word;i:byte);
+
+  procedure drawbig;
+  begin
+    CircleFill(x,y,20,eblack+4);
+    CircleFill(x,y,8,eyellow+1);
+  end;
+
+  procedure drawmed;
+  begin
+    CircleFill(x,y,14,eblack+4);
+  end;
+
+  procedure drawsmall;
+  begin
+    CircleFill(x,y,6,eblack+4);
+  end;
+
+begin
+
+case i of
+1:drawsmall;
+2:drawmed;
+3:drawbig;
+end;
+
+end;
+
+
+
+procedure drawbullets;
+var i:byte;
+begin
+
+for i:=0 to maxbul do
+if buls[i].exist=true then
+circlefill(real2int(buls[i].x),real2int(buls[i].y),buls[i].r,buls[i].c);
+
+end;
+
+
+procedure movebullets;
+var i:byte;
+begin
+
+for i:=0 to maxbul do
+if buls[i].exist=true then begin
+buls[i].x:=buls[i].x-buls[i].spd*sin(buls[i].rotation);
+buls[i].y:=buls[i].y-buls[i].spd*cos(buls[i].rotation);
+end;
+
+end;
+
+
+procedure removebullet(id:byte);
+begin
+buls[id].exist:=false;
+drawspark(real2int(buls[id].x),real2int(buls[id].y),1);
+end;
+
+
+procedure checkbullets;
+var i:byte;
+begin
+
+for i:=0 to maxbul do
+if (buls[i].exist=true) then
+if (buls[i].y<buls[i].r)
+or (buls[i].y>maxy-buls[i].r)
+or (buls[i].x<30+buls[i].r)
+or (buls[i].x>maxx-30-buls[i].r)
+then removebullet(i);
+
+end;
+
+
+
+
+procedure drawEnemies;
+var i:byte;
+begin
+
+
+for i:=0 to maxeos do begin
+{
+polygon(eos[i].x,eos[i].y,eos[i].part1.pol,eos[i].part1.c);
+polygon(eos[i].x,eos[i].y,eos[i].part2.pol,eos[i].part2.c);
+polygon(eos[i].x,eos[i].y,eos[i].part3.pol,eos[i].part3.c);
+}
+
+case eos[i].func1.typ of
+     1: box(eos[i].func1.x1,
+            eos[i].func1.x2,
+            eos[i].func1.y1,
+            eos[i].func1.y2,
+            eos[i].func1.c,
+            true);
+     2: circlefill(eos[i].func1.x1,
+            eos[i].func1.x2,
+            eos[i].func1.y1,
+            eos[i].func1.c);
+     3: elipsa(eos[i].func1.x1,
+            eos[i].func1.x2,
+            eos[i].func1.y1,
+            eos[i].func1.y2,
+            eos[i].func1.c);
+end;
+case eos[i].func2.typ of
+     1: box(eos[i].func2.x1,
+            eos[i].func2.x2,
+            eos[i].func2.y1,
+            eos[i].func2.y2,
+            eos[i].func2.c,
+            true);
+     2: circlefill(eos[i].func2.x1,
+            eos[i].func2.x2,
+            eos[i].func2.y1,
+            eos[i].func2.c);
+     3: elipsa(eos[i].func2.x1,
+            eos[i].func2.x2,
+            eos[i].func2.y1,
+            eos[i].func2.y2,
+            eos[i].func2.c);
+end;
+case eos[i].func3.typ of
+     1: box(eos[i].func3.x1,
+            eos[i].func3.x2,
+            eos[i].func3.y1,
+            eos[i].func3.y2,
+            eos[i].func3.c,
+            true);
+     2: circlefill(eos[i].func3.x1,
+            eos[i].func3.x2,
+            eos[i].func3.y1,
+            eos[i].func3.c);
+     3: elipsa(eos[i].func3.x1,
+            eos[i].func3.x2,
+            eos[i].func3.y1,
+            eos[i].func3.y2,
+            eos[i].func3.c);
+end;
+
+end; { for end }
+
+End;
+
+
+
+
+
+
+
+procedure initmenu;
+begin
+
+end;
+
+
+
+
+procedure initgame;
+begin
+
+initmouse;
+LimitX(38,282);
+LimitY(7,192);
+
+
+(*    ZMIENNE     *)
+score:=0;
+hp:=100;
+maxeos:=50;
+maxbul:=200;
+gracz.shootrate:=40;
+
+
+gracz.x:=160;
+gracz.y:=192;
+gracz.length:=20;
+setColor(6,20,20,20);
+setColor(7,25,25,25);
+setColor(8,35,35,35);
+setColor(9,45,45,45);
+setcolor(45,63,20,20);
+setcolor(46,50,0,0);
+{ PALETA PRZECIWNIKOW }
+{ red }
+setcolor(10,30,0 ,0 );
+setcolor(11,63,0 ,0 );
+setcolor(12,63,34,34);
+{ orange }
+setcolor(13,30,18,0 );
+setcolor(14,63,40,0 );
+setcolor(15,63,48,34);
+{ yellow }
+setcolor(16,30,30,0 );
+setcolor(17,63,63,0 );
+setcolor(18,63,63,34);
+{ lime }
+setcolor(19,18,30,0 );
+setcolor(20,40,63,0 );
+setcolor(21,48,63,34);
+{ green }
+setcolor(22,0 ,30,0 );
+setcolor(23,0 ,63,0 );
+setcolor(24,34,63,64);
+{ bluegreen }
+setcolor(25,0 ,30,18);
+setcolor(26,0 ,63,40);
+setcolor(27,34,63,48);
+{ lightblue }
+setcolor(28,0 ,30,30);
+setcolor(29,0 ,63,63);
+setcolor(30,34,63,63);
+{ blue }
+setcolor(31,0 ,0 ,30);
+setcolor(32,0 ,0 ,63);
+setcolor(33,34,34,63);
+{ violet }
+setcolor(34,18,0 ,30);
+setcolor(35,40,0 ,63);
+setcolor(36,48,34,63);
+{ pink }
+setcolor(37,30,0 ,30);
+setcolor(38,63,0 ,63);
+setcolor(39,63,34,63);
+{ black }
+setcolor(40,0 ,0 ,0 );
+setcolor(41,18,18,18);
+setcolor(42,30,30,30);
+setcolor(43,48,48,48);
+setcolor(44,63,63,63);
+
+
+(*   PROCEDURY    *)
+updatehudpal;
+drawhud;
+drawscore;
+
+
+(* CZYNNIKI GLOWNE *)
+delay(2000);
+gamestarted:=true;
+playinglvl:=true;
+lvl:=0;
+preparenextlvl;
+end;
+
+procedure endgame;
+begin
+
+end;
+
+
+procedure beginCount;
+begin
+  counting:=true;
+  countint:=200;
+end;
+
+procedure draw3;
+var i:byte;
+begin
+  for i:=0 to 9 do
+    setcolor(47+i,0,i*4+25,0);
+  VGAText(maxx div 2-30+5,20,47,'��������',0);
+  VGAText(maxx div 2-30,28,48,'��������',0);
+  VGAText(maxx div 2-30,36,49,'�    ���',0);
+  VGAText(maxx div 2-30,44,50,'    ��� ',0);
+  VGAText(maxx div 2-30,52,51,'   ���  ',0);
+  VGAText(maxx div 2-30,60,52,'    ��� ',0);
+  VGAText(maxx div 2-30,68,53,'     ���',0);
+  VGAText(maxx div 2-30,76,54,'��  ����',0);
+  VGAText(maxx div 2-30,84,55,'������� ',0);
+  VGAText(maxx div 2-30,92,56,' �����  ',0);
+end;
+
+procedure draw2;
+begin
+  VGAText(maxx div 2-30,20,47,' �����  ',0);
+  VGAText(maxx div 2-30,28,48,'������� ',0);
+  VGAText(maxx div 2-30,36,49,'��   �� ',0);
+  VGAText(maxx div 2-30,44,50,'     �� ',0);
+  VGAText(maxx div 2-30,52,51,'    ��  ',0);
+  VGAText(maxx div 2-30,60,52,'   ��   ',0);
+  VGAText(maxx div 2-30,68,53,'  ��    ',0);
+  VGAText(maxx div 2-30,76,54,' ��    �',0);
+  VGAText(maxx div 2-30,84,55,'��������',0);
+  VGAText(maxx div 2-30,92,56,'��������',0);
+end;
+
+procedure draw1;
+begin
+  VGAText(maxx div 2-30,20,47,'   ��   ',0);
+  VGAText(maxx div 2-30,28,48,'  ���   ',0);
+  VGAText(maxx div 2-30,36,49,' ����   ',0);
+  VGAText(maxx div 2-30,44,50,' ����   ',0);
+  VGAText(maxx div 2-30,52,51,'   ��   ',0);
+  VGAText(maxx div 2-30,60,52,'   ��   ',0);
+  VGAText(maxx div 2-30,68,53,'   ��   ',0);
+  VGAText(maxx div 2-30,76,54,'   ��  �',0);
+  VGAText(maxx div 2-30,84,55,'   �����',0);
+  VGAText(maxx div 2-30,92,56,'��������',0);
+end;
+
+procedure drawgo;
+begin
+  VGAText(maxx div 3,20,47,' ����   ���� ',0);
+  VGAText(maxx div 3,28,48,'������ ������',0);
+  VGAText(maxx div 3,36,49,'��   � ��  ��',0);
+  VGAText(maxx div 3,44,50,'��     �    �',0);
+  VGAText(maxx div 3,52,51,'��     �    �',0);
+  VGAText(maxx div 3,60,52,'��     �    �',0);
+  VGAText(maxx div 3,68,53,'�� ��� �    �',0);
+  VGAText(maxx div 3,76,54,'��   � ��  ��',0);
+  VGAText(maxx div 3,84,55,'������ ������',0);
+  VGAText(maxx div 3,92,56,' ����   ���� ',0);
+end;
+
+procedure countDown;
+begin
+
+if countint>0 then countint:=countint-1;
+
+if (countint<200) and (countint>151) then draw3
+else
+if (countint<150) and (countint>101) then draw2
+else
+if (countint<100) and (countint>51) then draw1
+else
+if countint<50 then drawgo
+else
+if countint=0 then counting:=false;
+
+end;
+
+
+
+procedure preparenextlvl;
+var
+i:byte;
+begin
+lvl:=lvl+1;
+beginCount;
+end;
+
+
+procedure checklvl;
+begin
+
+end;
+
+
+
+
+
+procedure addenemy;
+var i,f,t:byte;
+begin
+
+{ sprawdz wolne miejsce }
+for i:=0 to maxeos do
+if eos[i].exist<>true then begin
+f:=i;
+exit;
+end;
+
+{ wybierz najnizsze wolne miejsce }
+for i:=0 to maxeos do
+if eos[i].exist<>true then begin
+f:=i;
+break;
+end;
+
+t:=random(lvltypes[lvl]);
+
+eos[f].exist:=true;
+eos[f].x:=random(240)+40;
+eos[f].y:=10;
+eos[f].hp:=enemies[t].hp;
+eos[f].xs:=enemies[t].xs;
+eos[f].ys:=enemies[t].ys;
+eos[f].func1:=enemies[t].func1;
+eos[f].func2:=enemies[t].func2;
+eos[f].func3:=enemies[t].func3;
+eos[f].func4:=enemies[t].func4;
+eos[f].func5:=enemies[t].func5;
+eos[f].func6:=enemies[t].func6;
+
+
+end;
+
+
+
+procedure moveenemies;
+var i:byte;
+begin
+
+for i:=0 to maxeos do
+  if eos[i].exist=true then
+  begin
+    eos[i].y:=eos[i].y+real2int(eos[i].y+eos[i].ys);
+
+    if (eos[i].x < 42) or (eos[i].x > 278) then eos[i].x:=-eos[i].x;
+
+    eos[i].x:=eos[i].x+real2int(eos[i].x+eos[i].xs);
+  end;
+End;
+
+
+procedure atackEnemy(eid,bid:byte);
+var i:byte;
+begin
+
+if buls[bid].power<eos[eid].hp then
+begin
+   eos[eid].hp:=eos[eid].hp-buls[bid].power;
+end
+else removeEnemy(eid);
+
+end;
+
+
+procedure atackPlayer;
+var i:byte;
+begin
+end;
+
+
+procedure checkCol;
+var i,j:byte;
+begin
+
+for i:=0 to maxeos do
+  if eos[i].exist=true then
+    for j:=0 to maxbul do
+      if (buls[j].exist=true) and (buls[j].owner='p') then
+        begin
+
+        if
+        (buls[j].x > eos[i].x+eos[i].r) and
+        (buls[j].x < eos[i].x-eos[i].r) and
+        (buls[j].y > eos[i].y+eos[i].r) and
+        (buls[j].y < eos[i].y-eos[i].r) then
+        atackEnemy(i,j);
+        end
+      else if (buls[j].exist=true) and (buls[j].owner='e') then
+        begin
+
+        if
+        (buls[j].x > gracz.x+10) and
+        (buls[j].x < gracz.x-10) and
+        (buls[j].y > gracz.y+10) and
+        (buls[j].y < gracz.y-10) then
+        atackPlayer {(j)};
+        end;
+end;
+
+
+
+procedure removeenemy(id:byte);
+begin
+
+eos[id].exist:=false;
+score:=score+eos[id].maxpoints div real2int(eos[id].y)div 5;
+
+end;
+
+
+
+
+
+
+
+
+
+
+
+END.

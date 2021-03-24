@@ -1,0 +1,450 @@
+{$G+}
+unit zvga;
+interface
+uses crt;
+
+const maxX=319; {wartoШЖ maxymalna x - od 0 do 319 = 320 punktow}
+      maxy=199; {wartoШЖ maxymalna y - od 0 do 199 = 200 punktow}
+      maxc=255; {wartoШЖ maxymalna c - od 0 do 255 = 256 kolorow}
+
+procedure initvga;      { inicjuje tryb graficzny 320x200 }
+procedure closevga;     { zamyka tryb graficzny }
+procedure drawpage;     { przerysowuje bufor na ekran }
+procedure czekaj;       { czeka na powrot poziomy monitora }
+procedure cls(color:byte);          { czysci zawartosc ekranu }
+procedure clss;         { czysci zawartosc bufora }
+
+procedure pixel(x,y:word;color:byte);             { rysuje pojedynczy pixel }
+function getpixel(x,y:word):byte;                 { pobiera wartosc pixela }
+procedure LineH(x1,x2,y:word;c:byte);             { rysuje pozioma linie }
+procedure LineV(x,y1,y2:word;c:byte);             { rysuje pionowa linie }
+procedure Line(X1,Y1,X2,Y2:integer;C:Byte);       { rysuje dowolna linie }
+procedure box(x1,x2,y1,y2:word;c:byte;fill:boolean);{ rysuje pusty kwadrat }
+procedure boxout(x1,x2,y1,y2:word;cf,co:byte);    { rysuje kwadrat z wypelnieniem }
+                                                  { i otoczka w innym kolorze }
+procedure circle(X,Y,R:Word;C:Byte;Fill:Boolean); { rysuje kolko }
+
+
+
+
+function real2word(i:real):word;                  { konwertuje real na word }
+
+implementation
+
+procedure initvga; Assembler;
+asm
+MOV AL,13H
+MOV AH,00H
+INT 10H
+end;
+
+procedure closevga; Assembler;
+asm
+MOV AL,03H
+MOV AH,00H
+INT 10H
+end;
+
+procedure cls(color:byte);assembler;
+asm
+  mov ax,09000h
+  mov es,ax
+  xor di,di
+  db 66h
+  xor ax,ax
+  mov al,color
+  mov ah,al
+  mov bx,ax
+  db 66h
+  shl ax,16
+  mov ax,bx
+  mov cx,16000
+  db 66h
+  rep stosW
+end;
+
+procedure clss;assembler;
+asm
+MOV AX,0A000H { do AX adres ostatniego segmentu }
+MOV ES,AX     { ES = AX }
+MOV DI,0      { DI = 0 - zacznij od pierwszego pixela (0,0) }
+MOV AL,0      { do AL kolor }
+MOV AH,0      { do AH kolor }
+MOV CX,32000  { zapisujemy po dwa bajty (64000 / 2) bo tak jest szybciej }
+end;
+(*
+procedure clss;assembler;
+asm
+MOV [ES:DI],AX  { ustaw dwa bajty w pamieci }
+INC DI          { wskaz na nastepne }
+INC DI          { dwa bajty do nadpisania }
+REP   { rвb petle }
+end;
+*)
+
+procedure czekaj;
+begin
+asm
+mov dx, 03dah
+@jest:          {czekanie konca obecnego powrotu pionowego}
+in  al, dx
+test al, 00001000b
+jnz @jest
+
+@nie_ma:        {czekanie poczatku powrotu pionowego}
+in al, dx
+test al, 00001000b
+jz @nie_ma
+end;
+end;
+
+
+procedure drawpage;
+begin
+move(mem[$9000:0],mem[$A000:0],64000);
+end;
+
+
+
+
+
+
+
+procedure pixel(x,y:word;color:byte);assembler;
+asm
+MOV AX,y           { do AX pozycje Y pixela }
+CMP AX,0           { jeli AX mniejsze od 0 }
+JL @putpixel_end   { to skocz do etykiety nie_rysuj }
+CMP AX,200         { jeli AX wieksze lub rвwne 200 }
+JAE @putpixel_end  { to skocz do etykiety nie_rysuj }
+MOV BX,x           { do BX pozycje X pixela }
+CMP BX,0           { jeli BX mniejsze od 0 }
+JL @putpixel_end   { to skocz do etykiety nie_rysuj }
+CMP BX,320         { jeli BX wieksze lub rвwne 320 }
+JAE @putpixel_end  { to skocz do etykiety nie_rysuj }
+PUSH BX            { od3в? BX na stos (pozycje X) }
+MOV BX,AX          { BX = AX, czyli do BX pozycja Y }
+SAL AX,6           { ten fragment mno?y Y przez 320 }
+SAL BX,8           { u?ywaj+c przesuniea bitowych }
+ADD AX,BX          { co jest znacznie szybsze }
+POP BX             { zdejmij BX ze stosu (pozycje X) }
+ADD AX,BX          { dodaj do AX pozycje X }
+MOV DI,AX          { rejestr DI = AX }
+MOV AX,09000H      { do AX adres segmentu graficznego }
+MOV ES,AX          { rejestr ES = AX }
+MOV CL,color       { do CL numer koloru pixela }
+MOV [ES:DI],CL     { skopiuj wartoc CL (kolor pixela) do danej komurki w buforze }
+@putpixel_end:
+end;
+
+function getpixel(x,y:word):byte;
+var color:byte;
+begin
+asm
+MOV AX,[Y]         { do AX pozycje Y pixela }
+CMP AX,0           { jeli AX mniejsze od 0 }
+JL @getpixel_end   { to skocz do etykiety nie_rysuj }
+CMP AX,200         { jeli AX wieksze lub rвwne 200 }
+JAE @getpixel_end  { to skocz do etykiety nie_rysuj }
+MOV BX,[X]         { do BX pozycje X pixela }
+CMP BX,0           { jeli BX mniejsze od 0 }
+JL @getpixel_end   { to skocz do etykiety nie_rysuj }
+CMP BX,320         { jeli BX wieksze lub rвwne 320 }
+JAE @getpixel_end  { to skocz do etykiety nie_rysuj }
+PUSH BX            { od3в? BX na stos (pozycje X) }
+MOV BX,AX          { BX = AX, czyli do BX pozycja Y }
+SAL AX,6           { ten fragment mno?y Y przez 320 }
+SAL BX,8           { u?ywaj+c przesuniea bitowych }
+ADD AX,BX          { co jest znacznie szybsze :) }
+POP BX             { zdejmij BX ze stosu (pozycje X) }
+ADD AX,BX          { dodaj do AX pozycje X }
+MOV DI,AX          { rejestr DI = AX }
+MOV AX,09000H      { do AX adres segmentu graficznego }
+MOV ES,AX          { rejestr ES = AX }
+MOV CL,[ES:DI]     { kolor pixela do CL }
+MOV color,CL       { numer koloru do zmiennej Color }
+@getpixel_end:
+end;
+getpixel:=color;
+end;
+
+procedure LineH(x1,x2,y:word;c:byte);assembler;
+asm
+  mov ax,x1
+  cmp ax,x2
+  jb @ok
+  xchg ax,x2
+  mov x1,ax
+@ok:
+  mov ax,09000h
+  mov es,ax
+  mov dx,y
+  mov di,x1
+  xchg dh,dl
+  add di,dx
+  shr dx,2
+  add di,dx
+  mov cx,x2
+  sub cx,x1
+  inc cx
+  mov al,c
+  rep Stosb
+end;
+
+procedure LineV(x,y1,y2:word;c:byte);assembler;
+asm
+  mov ax,09000h{_$A000}
+  mov es,ax
+  mov dx,y1
+  mov di,x
+  xchg dh,dl
+  add di,dx
+  shr dx,2
+  add di,dx
+  mov cx,y2
+  sub cx,y1
+  inc cx
+  mov al,c
+@p:
+  StosB
+  add di,319
+  loop @p
+end;
+
+Function Sgn (I : Integer) : Integer; Assembler;
+Asm
+  Mov   AX, I
+  Or    AX, AX
+  JZ    @end
+  ShL   AX, 1
+  JC    @1
+  Mov   AX, 1
+  Jmp   @end
+@1:
+  Mov   AX, -1
+@end:
+End;
+
+Function _Abs (I : Integer) : Integer; Assembler;
+Asm
+  Mov   AX, I
+  Test  AX, 8000h
+  JZ    @end
+  Neg   AX
+@end:
+End;
+
+Procedure Line (X1,Y1,X2,Y2:integer; C : Byte);
+Var
+  SX,SY,M,N,DX1,DY1,DX2,DY2:integer;
+Begin
+  SX := X2-X1;
+  SY := Y2-Y1;
+  DX1 := Sgn (SX);
+  DY1 := Sgn (SY);
+  M := _Abs (SX);
+  N := _Abs (SY);
+  DX2 := DX1;
+  DY2 := 0;
+  If M < N then
+    Begin
+      M := _Abs (SY);
+      N := _Abs (SX);
+      DX2 := 0;
+      DY2 := DY1
+    End;
+  Asm
+    Mov   AX, 09000h
+    Mov   ES, AX
+    Mov   DI, X1
+    Mov   BX, Y1
+    ShL   BX, 6
+    Add   DI, BX
+    ShL   BX, 2
+    Add   DI, BX                                { ES:DI = ^ на первую точку }
+
+    Mov   AX, DY1
+    Test  AX, 8000h
+    JZ    @lb0
+    Neg   AX
+    ShL   AX, 6
+    Mov   BX, AX
+    ShL   AX, 2
+    Add   BX, AX
+    Neg   BX
+    Jmp   @lb1
+@lb0:
+    ShL   AX, 6
+    Mov   BX, AX
+    ShL   AX, 2
+    Add   BX, AX
+@lb1:
+    Add   BX, DX1
+
+    Mov   AX, DY2
+    Test  AX, 8000h
+    JZ    @lb2
+    Neg   AX
+    ShL   AX, 6
+    Mov   DX, AX
+    ShL   AX, 2
+    Add   DX, AX
+    Neg   DX
+    Jmp   @lb3
+@lb2:
+    ShL   AX, 6
+    Mov   DX, AX
+    ShL   AX, 2
+    Add   DX, AX
+@lb3:
+    Add   DX, DX2
+
+    Mov   AL, C
+    Xor   SI, SI
+    Mov   CX, M
+    Inc   CX
+@cycle:
+    Mov   ES:[DI], AL
+    Add   SI, N
+    Cmp   SI, M
+    JC    @cl1
+    Sub   SI, M
+    Add   DI, BX                                { + Смещение след. элемента }
+    Loop  @cycle
+    Jmp   @end
+@cl1:
+    Add   DI, DX                                { + Смещение след. точки }
+    Loop  @cycle
+@end:
+  End
+End;
+
+
+procedure box(x1,x2,y1,y2:word;c:byte;fill:boolean);
+var i:word;
+begin
+if fill=false then begin
+lineh(x1,x2,y1,c);
+lineh(x1,x2,y2,c);
+linev(x1,y1,y2,c);
+linev(x2,y1,y2,c);
+end
+else for i:=y1 to y2 do lineh(x1,x2,i,c);
+end;
+
+
+procedure boxout(x1,x2,y1,y2:word;cf,co:byte);
+var i:word;
+begin
+{ outlines }
+lineh(x1,x2,y1,co);
+lineh(x1,x2,y2,co);
+linev(x1,y1,y2,co);
+linev(x2,y1,y2,co);
+{ wypelnienie }
+for i:=y1+1 to y2-1 do lineh(x1+1,x2-1,i,cf);
+end;
+
+
+function SqrWN (X : Word) : Byte; Assembler;
+Asm
+  Mov   CX, X
+  Push  BP
+  Mov   BP, 1
+  Mov   BX, CX
+  JCXZ  @end2
+  Cmp   CX, 0FFFFH
+  JNE   @cycle
+  Mov   BX, 0FFH
+  Jmp   @end2
+@cycle:
+  Xor   DX, DX
+  Mov   AX, CX
+  Div   BX
+  Add   AX, BX
+  Shr   AX, 1
+  Mov   DI, SI
+  Mov   SI, BX
+  Mov   BX, AX
+  Inc   BP
+  Cmp   BX, SI
+  JE    @end
+  Cmp   BP, 3
+  JC    @cycle
+  Cmp   BX, DI
+  JNE   @cycle
+  Cmp   SI, BX
+  JNC   @end
+  Mov   BX, SI
+@end:
+  Mov   AX, BX
+  Mul   BX
+  Sub   AX, CX
+  Neg   AX
+  Inc   AX
+  Mov   SI, AX                  { разница аргумента и квадрата корня }
+  Inc   BX
+  Mov   AX, BX
+  Mul   BX
+  Sub   AX, CX                  { разница арг. и квадрата увеличенного корня }
+  Cmp   AX, SI
+  JC    @end2
+  Dec   BX
+@end2:
+  Pop   BP
+  Mov   AX, BX
+End;
+
+procedure circle (X,Y,R:Word;C:Byte;Fill:Boolean);
+Var
+  A, B : Word;
+begin
+  If R = 0 then Exit;
+  If not Fill then
+    For A := 0 to R do
+      Begin
+        B := SqrWN(Sqr(R)-Sqr(A));
+        pixel(X-A, Y-B, C);
+        pixel(X+A, Y-B, C);
+        pixel(X-A, Y+B, C);
+        pixel(X+A, Y+B, C);
+        pixel(X-B, Y-A, C);
+        pixel(X-B, Y+A, C);
+        pixel(X+B, Y-A, C);
+        pixel(X+B, Y+A, C)
+      End
+  Else
+    For A := 0 to R do
+      Begin
+        B := SqrWN(Sqr(R)-Sqr(A));
+        LineH (X-B, Y-A, 1+B shl 1, C);
+        LineH (X-B, Y+A, 1+B shl 1, C)
+      End
+End;
+
+
+
+
+
+
+
+
+
+
+
+
+function real2word(i:real):word;
+var s:string;
+    tmp:word;
+begin
+str(i:6:0, s);
+Val(s,tmp,);
+real2word:=tmp;
+end;
+
+
+
+
+begin
+
+end.
