@@ -1,0 +1,64 @@
+
+ XMSDRV.TPU
+
+ XMS handling library.
+ Copyright by TSC-Software, 1993-95.
+
+ -----------------------------------------------------------------------------
+
+ Link this library into your software and you'll have completely control of
+ extended memory, which is managed by a XMS-handler like HIMEM.SYS
+ The unit offers you various procedures and functions to access the XMS-mem. 
+
+
+ The following data and procedures are declared as public
+
+
+
+ Var
+  XMSAddr: Pointer;			{ Holds the address of the expanded   }
+					{ memory manager. If NIL then the ma- }
+					{ nager isn't installed. Don't change }
+
+  Procedure A20Access(Access: Word);    { For professionals only. 0=OFF, 1=ON }
+
+  Function EMBAvail: Word;	    { Returns the available size of XMS in kB }
+  Function EMBMax: Word;	    { Returns the complete XMS-mem size in kB }
+
+  Function  LockEMB(Var Handle: Word): Pointer;      { Locks an allocated EMB }
+  Procedure UnlockEMB(Var Handle: Word);	       { Unlocks a locked EMB }
+
+  Function  GetEMB(Size: Word): Word;			   { Allocates an EMB }
+  Procedure ReSizeEMB(Var Handle: Word; Size: Word);  { Resizes an alloc. EMB }
+  Procedure FreeEMB(Var Handle: Word);		      { Free up allocated EMB }
+
+  Procedure MoveEMB(Var EMMStruc);     { Move mem contents from or to XMS-mem }
+
+
+ How to write something to XMS-mem:
+  1. Check if XMS-handler is installed (XMSAddr <> NIL)
+  2. Check if enough XMS-mem is free (EMBAvail >= needed size)
+  3. Allocate an EMB by using GetEMB (Size in kB) and save the handle, which
+     is returned. If handle is zero then an error has occured.
+  4. Now use MoveEMB to copy data from base memory into XMS. EMMStruc is de-
+     fined as the following record:
+
+      for moving from 					 for moving from
+      base mem to XMS					 XMS to base mem
+  
+     EMMStruc = Record					EMMStruc = Record;
+      Counter: LongInt; <-------- must be even ------->	 Counter: LongInt;
+      SHandle: Word;	<-- zero       | EMB-handle -->	 SHandle: Word;
+      SOffset: Pointer;	<-- mem addr   |     offset -->	 SOffset: LongInt;
+      THandle: Word;	<-- EMB-handle |       zero -->	 THandle: Word;
+      TOffset: LongInt;	<-- offset     |   mem addr -->  TOffset: LongInt;
+     End;						End;
+
+     You can't copy more than 65528 bytes in one time. So increase the offset
+     of the EMB by the count of bytes you've just copied and go on.
+  5. Now you can lock  your EMB and get the physical address where it's loca-
+     ted in XMS. Now do what you want with it.
+  6. Unlock your EMB and release it.
+
+
+  VOCS.TPU needs this unit internally for loading VOC-files into XMS-memory.

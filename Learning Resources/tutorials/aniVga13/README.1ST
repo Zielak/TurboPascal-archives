@@ -1,0 +1,60 @@
+       °°°°°°Ü °°°Ü °°Ü °°°°°°Ü                °°Ü °°Ü  °°°°Ü  °°°°°°Ü
+       °°Ûß°°Û °°°°Ü°°Û   °°Ûßß                °°Û °°Û °°Ûßßß  °°Ûß°°Û
+       °°°°°°Û °°Û°°°°Û   °°Û      °°°°°°Ü     °°Û °°Û °°Û°°°Ü °°°°°°Û
+       °°Ûß°°Û °°Û °°°Û   °°Û       ßßßßßß      °Û °Ûß °°Û °°Û °°Ûß°°Û
+       °°Û °°Û °°Û  °°Û °°°°°°Ü                  °°Ûß   °°°°Ûß °°Û °°Û
+        ßß  ßß  ßß   ßß  ßßßßßß                   ßß     ßßßß   ßß  ßß
+
+
+               ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+               ³           ANIVGA  (c), 1991..1993           ³
+               ³     a Sprite-Unit for TurboPascal òV6.0     ³
+               ³              by Kai Rohrbacher              ³
+               ³                 Version 1.2                 ³
+               ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+
+Hi everybody!
+
+Here it is: the new version of my sprite toolkit for TurboPascal ò6.0 and the
+VGA's 256 color mode!
+(Read the file README.2nd for important details how to install or upgrade the
+ program!)
+I decided to publish the source code for your convenience, but it still
+remains copyrighted by the author (that's me!): these programs are FREEWARE,
+_not_ PUBLIC DOMAIN! You are free to copy and give away this program, as long
+as you do not omit or change any files from the archive.
+
+To see whether ANIVGA is what you were looking for, here are some of ANIVGA's
+capabilities & restrictions:
+
+ - flickerfree animation by a "page-flipping" algorithm and using the
+   display enable signal
+ - sprite movement in any increments you want
+ - arbitrary background image for the animation
+ - windowed animations
+ - full use of the VGA's 256-color mode
+ - several sprite display methods available:
+   - sprites can be written normally (covering underlying figures)
+   - sprites can be declared to be transparent with regard to the background
+     or other sprites pixel by pixel
+   - sprites can change their color depending on the underlying background
+     image (-> shadow function)
+ - display methods can be different for each sprite
+ - pixel precise hit-detection routine built in
+ - correct clipping of sprites at the screen boundaries
+ - up to 32767 different sprites
+ - up to 500 sprites may be simultaneously active
+ - maximal size of each sprite = 64k
+ - maximal size of all loaded sprites only restricted by available memory
+ - works with virtual coordinates in the range -16000..+16000
+ - thus simple creation of horizontal/vertical "scrolling" games
+ - scrolling background image, too
+ - several supporting routines to: drawing lines (with built in clipping-
+   algorithm), points and graphic-text (incl. clipping), automatic heap
+   management for loading of sprites, sprite libraries, background images,
+   processor-speed adjustment, palette handling, fading routines, ...
+
+What ANIVGA does _not_ support:
+ - XMS memory  
+ - resolutions other than 320x200x256 

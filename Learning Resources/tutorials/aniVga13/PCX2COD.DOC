@@ -1,0 +1,14 @@
+This is a small á-version goodie: you can use it to convert PCX-graphics
+into *.COD or *.PIC files.
+You need a mouse for this program to select the part of the picture you want
+to convert and a SVGA-card to display large pictures in 256 color modes.
+Press the left button and drag the mouse around: this will move the upper
+left corner of your selection box. Press <Return> to save that area, <ESC>
+will quit the program.
+If your selected part is 320x200 pixels in size, the program will generate
+a *.PIC file as output, all other sizes will result in *.COD files.
+If the screen part you selected is to large to fit into 64K, the program
+will tell you so. Note that you may produce sprites which fit into 64K, but
+are to high or to wide to be read in by MAKES later on!
+
+Oh yes: this is a BETA-version! Don't expect error-free behaviour!

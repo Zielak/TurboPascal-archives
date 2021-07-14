@@ -1,0 +1,83 @@
+Updating / Installation:
+컴컴컴컴컴컴컴컴컴컴컴컴
+
+If you use an older version, I suggest strongly that you unzip this archive
+into a new directory instead of copying the new files over the old ones!
+
+| NOTE THAT THE ORIGINAL ARCHIVE HAS BEEN PACKED USING DIRECTORY INFOR-
+| MATIONS! THUS YOU SHOULD USE "PKUNZIP -D ANIVGA12.ZIP C:\ANIVGA12\"
+| (OR WHATEVER PATH IS SUITABLE FOR YOU) TO INSTALL IT!
+| IF YOU OMITTED THE "-D" SWITCH, REDO THE INSTALLATION NOW!
+
+After that, make sure TPC.EXE is on your path and just start MAKE.BAT to
+compile the units and examples (read the starting section of ANIVGA.DOC
+for more information, if necessary).
+
+If you are updating from a former version (or just curious..), then run
+WHATSNEW.EXE and read CHANGES.TXT.
+
+
+Reaching me -- and you!:
+컴컴컴컴컴컴컴컴컴컴컴컴
+My normal Internet & Bitnet addresses remain valid, but are subject to change
+sometime in 1993:
+
+Internet: S_ROHRBACHER@IRAVCL.IRA.UKA.DE
+Bitnet  : UKB8@DKAUNI2.BITNET  (aka UKB8@IBM3090.RZ.UNI-KARLSRUHE.DE)
+FIDO    : 2:241/7451.7
+SubNet  : kai.rohrbacher@logo.ka.sub.org
+
+(Note that due to the German putsch in FIDONet, you won't be able to reach
+ me at the 2:241/7451.7 address if you are writing from outside Germany!
+ If you don't have any other connection than FIDO, the only way to get
+ through will probably be a crash-mail at 2:241/7451 (+49-7251-87289) ).
+
+If you are one of those pitiable guys without e-mail access, you can reach me
+by snail-mail, too:
+          Kai Rohrbacher                     Banking account:
+          Talstrasse 24                         account# 5.355.494
+          76689 Karlsdorf-Neuthard              BLZ#     660 908 00
+          Germany                               bank     Badische Beamtenbank,
+                                                         Karlsruhe/Germany
+
+Until now, I tried to answer every mail that reached me. However, a few mails
+bounced. So if you don't get an answer after a _reasonable_ amount of time
+(say 2 weeks), try again and supply enough address information for a reply!
+
+
+Money, a forward glance and some "no"'s:
+컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴
+  As you may have noticed, I mentioned my bank account in the last paragraph,
+so we are going to talk a few words about money...
+  No, ANIVGA is still freeware in this version, although I can't gurantee that
+for future versions -- just as I can't guarantee that there will be any
+further versions *at all*!
+  No, that's not because I'm running out of ideas (quite the opposite is
+true!!!), but maintaining and enhancing ANIVGA takes a lot of time, presumably
+more time then you might think now. Besides that, answering all your questions,
+suggestions and comments takes its toll, too -- especially because I'm paying
+for mail on my own! As I'm both short in time and money, I have seriously con-
+sidered to let die ANIVGA as a freeware project, sell it to a local software
+company or do any further developments only for my own without publishing new
+versions. I didn't. Instead, I'm asking you for a small fee (I suggest equi-
+valent to $15..$30) to support further development of ANIVGA. (If you can't
+transfer directly, then go to your local post office and get an international
+postal money order -or mail cash in your national currency). -- Oh yes, and
+don't forget to add your email-address!
+  No, this is no blackmail -- I just can't answer hundreds (!) of mails, paying
+for all of them with _my_ time and money, I hope you understand that! (BTW: til
+the day, I answered _all_and_every_ mail of you that reached me and *I* am
+willing to continue that!)
+
+Thank you - and now have fun using ANIVGA V1.2!
+
+ -> start MAKE.BAT
+ -> run WHATSNEW.EXE
+ -> run the EXAMPL*.EXE's
+ -> look into ANIVGA.TUT & ANIVGA.DOC
+
++------------------------------------------+-------------------------------+
+| Kai Rohrbacher, Karlsruhe/Germany        | "Nothing in this world is as  |
+| Internet: S_ROHRBACHER@IRAVCL.IRA.UKA.DE |  strong as an idea which time |
+| Bitnet  : UKB8@DKAUNI2.BITNET            |  has come!"                   |
+| FIDO    : 2:241/7451.7                   |               (Victor Hugo)   |

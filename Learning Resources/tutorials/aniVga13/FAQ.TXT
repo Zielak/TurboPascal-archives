@@ -1,0 +1,240 @@
+Some frequently asked questions:
+컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴
+
+Q: I think you forgot to include the sources of some programs?
+A: No, I just couldn't include some units where I'm unsure about the legal
+   issues: they were once published in a magazine and I changed them a bit
+   to fit my needs. I didn't want to get into _any_ troubles, so I decided
+   not to publish them.
+
+Q: I'd like to understand the AniVGA-source code file ANIVGA.PAS, but
+   unfortunately, I don't speak German!
+A: Learn German -or- rename ANIVGA.ENG into ANIVGA.PAS --whatever is more
+   convenient for you... :-)
+
+Q: GRAB won't popup!
+A: As GRAB does disk writes, it can't popup while MSDos is in a critical
+   section (unfortunately, MSDos isn't reentrant, as we all do know).
+   Sometimes, GRAB doesn't even pop up, if it could. That's because of the
+   TSR-unit I use (I think it is because the unit doesn't supply an appropriate
+   INT28h-handler). Sorry, but I didn't found a better TSR-unit til now.
+   If you have a more radical image grabber, then use that, save the picture
+   to disk, use an image viewer program to display it and grab then!
+
+Q: GRAB shows a messed up capture box|screen!
+A: The application played some tricks to the VGA-card; reboot and start GRAB
+   again, this time supplying "/BIOS" as parameter -- and hope the best!
+
+Q: I can't run MAKES; my machine displays nothing|a mess when I start it!
+A: MAKES uses a 640x400x256 video mode only available at SuperVGA cards.
+   Although the BGI-driver tries to identify the chip-set of your VGA card,
+   it may fail on some, even if your card would supply this mode!
+   If it doesn't work even if you do have a SuperVGA card, then please drop
+   me a note, specifying which brand of VGA-card you use (especially which
+   chip-set)!
+   I have been reported by some people that their SVGA doesn't have a
+   640x400x256 mode or that they do have such a mode, but the BGI driver
+   doesn't work properly, anyway. For your convenience, I added a command
+   line parameter switch "/480" which will invoke MAKES in a 640x480x256
+   mode. This mode seems to work on nearly all SVGAs. To compensate the
+   different aspect ratio (compared to 640:400 = 320:200), you may use
+   your monitor's controller to expand the image accordingly.
+   If all else fails, you'll have the (ugly) MAKES of V1.0, sorry!
+
+Q: MAKES sometimes hangs when I start it or repeats an error, when I quit!
+A: These are spurious errors I encountered, too. It hangs when trying to
+   initialize the mouse driver - I suppose this is a problem of the mouse
+   driver! I couldn't track down the other error, sorry. If you find a way
+   to reproduce the error, then let me know!
+
+Q: How may I speedup things?
+A: Naturally, STATIC background is faster than SCROLLING backgrounds, but you
+   can speed up SCROLLING backgrounds, too: make sure that StartVirtualX
+   always is a multiple of 4 (that is, StartVirtualX MOD 4 = 0), because then,
+   AniVGA can (and will) use the VGA's write mode 1 which is a lot faster than
+   normal write mode 0.
+   Another idea is to shrink NMAX: if you don't need more than 100 sprites
+   (say), then change that constant and recompile AniVGA!
+   If you are using windowed animations: make the animation window smaller.
+
+Q: I'm using scrolling backgrounds and would like to display some items|text
+   at the same (absolute) screen position.
+A: Transform your coordinates, using StartVirtualX and StartVirtualY! See
+   EXAMPLE6.PAS for a small example!
+
+Q: I think the {line|pixel|char}-drawing routines don't work; for example, I
+   tried a Line(0,0,319,199,PAGE) command but saw no line being drawed!
+A: a) Perhaps your line is offscreen?
+      The Line()-, PutPixel()- etc. procedures work with virtual coordinates,
+      if you really want to draw a diagonal line from the upper left to the
+      lower right corner, you'll have to use virtual coordinates instead:
+      Line(0+StartVirtualX,0+StartVirtualY,319+StartVirtualX,199+StartVirtualY,
+           1-PAGE) should do the job
+   b) You used the wrong page!
+      Whenever Animate() gets called, it erases the screen. Thus you have to
+      plot lines, points and chars *after* Animate() did its job, that is: call
+      it *after* having called Animate() and use the _visible_ page "1-PAGE" as
+      drawing page!
+   c) You are using an animation window, drawed to the area outside that
+      window and forgot to update the outer area! A simple way to trigger
+      this is to set UpdateOuterArea:=2. However, this will update the
+      *complete* outer area, so if you are a hacker, you might come up with
+      something better ;-)
+
+Q: Could you send me some more information about your COD-format for sprites?
+A: There already _is_ such information: look into the ANIVGA.PAS source, right
+   below the IMPLEMENTATION-section.
+   If that's not enough for you, the just use DUMP_SPR on a small COD-file
+   (you can redirect the program's output into a file for your convenience).
+
+
+Email FAQs:
+Q: I have problems xyz using your AniVGA package
+A: V1.0? V1.1? ...
+
+Q: Can you please email me the newest copy of AniVGA?
+A: NO WAY! 1) I have an email limit here
+           2) I'm paying for email
+
+Q: Can you please snail-mail me the newest copy of AniVGA?
+A: Only if *I* have a minimum of work and don't pay for it: neither for
+   postage, packaging, handling, disk, duty or whatever!
+   Sorry, but there actually _were_ bozos sending me a letter just saying
+   "please send me a disk, perhaps I'll send you some bucks, if the new
+    version is worth it"
+   Such inquiries will be kicked into my dustbin, promised!
+
+Q: What's the best way to get the newest version of AniVGA?
+A: FTP it from a Simtel20-mirror in directory ../turbopas/
+   or download it from the Fido-BBS I'm on!
+   (Note to the latter: 2:241/7451 will be mail-only for some months;
+    you can try 2:241/7557 instead. However, as both BBSes did not give
+    in to the German FIDO-putsch, you won't find them in the official
+    nodelist for a freq. However, normal download are still possible:
+    their tel# are +49-7251-87289 / +49-721-757034, respectively.)
+
+Q: How can I access Simtel20?
+A: 1) with anonymous FTP:
+      Use your nearest site from the list below, issue "FTP" to that address
+      (either using the name of the site or its IP-address), login as user
+      "anonymous", give your complete email-address as password.
+      Use "cd" to change to the dir you want, "dir" or "ls" as usual. If you
+      want to download a text file, type "ASCII", if it is a binary file, type
+      "BIN". Then type "GET myfile.ext" and you succeed.
+      (Some machines distinguish upper-/lowercase!)
+
+      sun0.urz.uni-heidelberg.de
+        (129.206.100.126) Uni Heidelberg (Germany), /pub/msdos/simtel/???
+      ftp.informatik.rwth-aachen.de, tupac-amaru.informatik.rwth-aachen.de
+        (134.130.52.1)    Uni Aachen (Germany), /simtel/msdos/???
+        (137.226.112.31)  Uni Aachen (Germany), /pub/simtel, /pub/msdos,
+                                                /pub/rz.archiv/simtel/msdos/???
+      ftp.uni-paderborn.de
+        (131.234.2.32),   Uni Paderborn (Germany), /pcsoft/msdos/???
+      WSMR-SIMTEL20
+        (26.2.0.74),      New Mexico, USA (GMT-7h), PD1:<MSDOS.???>
+      wsmr-simtel20.army.mil
+        (192.88.110.20) dto. (use "cd PD1:<MSDOS.???>")
+      oak.oakland.edu
+        (141.210.10.117), Michigan, USA, /pub/msdos/???
+      wuarchive.wustl.edu
+        (128.252.135.4),  Washington University, St. Louis, USA,
+                                               /mirrors/msdos/???
+      uunet.uu.net
+        (137.39.1.2)      /systems/msdos/simtel20/???
+      ftp.uu.net
+        (137.39.1.9)      /systems/ibmpc/msdos/simtel20/???
+        (192.48.96.2)     dto.
+      ???
+        (128.255.16.175), Iowa, USA, /simtel.msdos/???
+      sol.deakin.oz.au, sol.deakin.edu.au
+        (128.184.1.1),    Australia, /pub/PC/simtel-20/???
+      rana.cc.deakin.oz.au
+        (128.184.1.4)     Australia, /pub/PC/simtel-20/???
+      grind.isca.uiowa.edu
+        (128.255.19.233)
+      archie.au, plaza.aarnet.edu.au
+        (139.130.4.6)     Melbourne, Australia, /micros/pc/simtel-20/???
+        (BTW: this is a GARBO-mirror, too!: /micros/pc/garbo/pc/??? )
+      nic.funet.fi
+        (128.214.6.100)   Finland, /pub/msdos/SIMTEL20-mirror/???
+      relay.cs.toronto.edu
+        (128.100.3.6)     Canada, /pub/pc/wuarchive.wustl.edu/mirrors/msdos/???
+      src.doc.ic.ac.uk
+        (146.169.3.7)     UK, /ibmpc/wsmr-simtel20.army.mil/???
+        (146.169.2.1)     /computing/systems/ibmpc/wsmr-simtel20.army.mil/???
+      gdr.bath.ac.uk
+        (138.38.32.1)     UK, /simtel-cdrom/msdos/???
+      gatekeeper.dec.com
+        (16.1.0.2)        /.2/micro/msdos/simtel20/???
+      nic.switch.ch
+        (130.59.1.40)     Switzerland, /mirror/msdos/???
+      pinus.slu.se
+        (130.238.98.11)   Sweden, /msdos.nfs.sunet.se/mirrors/msdos/???
+      nctuccca.edu.tw
+        (140.111.3.21)
+      world.std.com
+        (192.74.137.5)    /src/Simtel20/msdos/???
+
+
+   2) by email:
+      Create a mail with empty subject and contents like...
+      "/PDGET MAIL PD1:<MSDOS.TURBOPAS>ANIVGA11.ZIP (UUE" or
+      "/PDGET MAIL PD1:<MSDOS.TURBOPAS>ANIVGA11.ZIP UUENCODE"  or
+      "/PDGET MAIL PD1:<MSDOS.TURBOPAS>ANIVGA11.ZIP XXENCODE"  or
+      "/PDGET MAIL PD1:<MSDOS.TURBOPAS>ANIVGA11.ZIP (SF"
+      (use the last format "(SF" only if you are on a BITNET machine that can
+       handle that weird format!)
+      send it to...
+      a) your nearest list server
+      b) your nearest trickle host
+
+      Some (of very very very many) nodes are:
+
+      Location        EARN/BITNET          Internet
+      --------------  ----------------     ----------------------------------
+      In USA:         LISTSERV@NDSUVM1     LISTSERV@VM1.NODAK.EDU
+      In USA:         LISTSERV@RPITSVM     LISTSERV@VM.ITS.RPI.EDU
+      In Turkey:      TRICKLE@TREARN       TRICKLE@EGE.EDU.TR
+      In Denmark:     TRICKLE@DKTC11
+      In Italy:       TRICKLE@IMIPOLI
+      In Belgium:     TRICKLE@BANUFS11     TRICKLE@CCS.UFSIA.AC.BE
+      In Austria:     TRICKLE@AWIWUW11
+      In Germany:     TRICKLE@DS0RUS1I     TRICKLE@RUSVM1.RUS.UNI-STUTTGART.DE
+                      TRICKLE@DEARN        TRICKLE@VM.GMD.DE
+                      TRICKLE@DB0FUB11
+                      TRICKLE@DBNGMD12
+      In Israel:      TRICKLE@TAUNIVM      TRICKLE@VM.TAU.AC.IL
+      In Netherlands: TRICKLE@HEARN        TRICKLE@HEARN.NIC.SURFNET.NL
+      In France:      TRICKLE@FRMOP11      TRICKLE@FRMOP11.CNUSC.FR
+      In Chile:       TRICKLE@USACHVM1
+      In Colombia:    TRICKLE@UNALCOL      TRICKLE@UNALCOL.UNAL.EDU.CO
+      In Spain:       TRICKLE@EB0UB011
+      In Sweden:      TRICKLE@SEARN        TRICKLE@SEARN.SUNET.SE
+      In Taiwan:      TRICKLE@TWNMOE10     TRICKLE@TWNMOE10.EDU.TW
+
+      BTW: Send these commands to the server to get its help files:
+           for LISTSERV:   GET PDGET HELP
+           for TRICKLE :   /HELP
+
+      The server will send you one or several mails with the files you
+      requested, but broken up into reasonable sized parts and encoded the
+      way you did choose, (recommended: uuencoded).
+      Use an editor to delete mail headers and the like and run the
+      appropriate decoder (for example UUDECODE) on it - voila!
+
+      WARNING: Ordering files this way will produce tons of email! Someone
+      has to pay for it, be nice!
+
+   3) by download from a BBS:
+      "If you cannot access them via FTP or e-mail, most SIMTEL20 MSDOS
+       files, including the PC-Blue collection, are also available for
+       downloading from Detroit Download Central (313) 885-3956.  DDC
+       has multiple lines which support 300/1200/2400/9600/14400 bps
+       (103/212/V22bis/HST/V32bis/V42bis/MNP).
+       This is a subscription system with an average hourly cost of 17 cents.
+       It is also accessable on Telenet via PC Pursuit and on Tymnet via
+       StarLink outdial.
+       New files uploaded to SIMTEL20 are usually available on DDC within
+       24 hours."
+

@@ -1,0 +1,22 @@
+
+ VREMOVE v0.1
+ (C) Copyright by TSC-Software, 1995.
+
+ ------------------------------------
+
+
+ Usage: VREMOVE infile[.VOC]
+
+ The Soundblaster driver of VOCS.TPU doesn't need all the information which
+ are stored in the VOC-file header. This tool removes the irrelevant header
+ data.
+
+
+ Points of interest:
+
+ (1) Be sure that  "infile"  is  a  Creative Voice File because no error
+     checking is done.
+ (2) Before you can play a VOC-file with VOCS.TPU you  m u s t  run this
+     tool to convert the file into the correct format.
+ (3) VREMOVE  stores a DWord value at the top of the file containing the
+     size of the following sound data.

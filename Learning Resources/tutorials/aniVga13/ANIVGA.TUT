@@ -1,0 +1,226 @@
+       °°°°°°Ü °°°Ü °°Ü °°°°°°Ü                °°Ü °°Ü  °°°°Ü  °°°°°°Ü
+       °°Ûß°°Û °°°°Ü°°Û   °°Ûßß                °°Û °°Û °°Ûßßß  °°Ûß°°Û
+       °°°°°°Û °°Û°°°°Û   °°Û      °°°°°°Ü     °°Û °°Û °°Û°°°Ü °°°°°°Û
+       °°Ûß°°Û °°Û °°°Û   °°Û       ßßßßßß      °Û °Ûß °°Û °°Û °°Ûß°°Û
+       °°Û °°Û °°Û  °°Û °°°°°°Ü                  °°Ûß   °°°°Ûß °°Û °°Û
+        ßß  ßß  ßß   ßß  ßßßßßß                   ßß     ßßßß   ßß  ßß
+
+
+                          °°°°°°Ü°°Ü °°Ü°°°°°°Ü
+                            °°Ûßß°°Û °°Û  °°Ûßß
+                            °°Û  °°Û °°Û  °°Û
+                            °°Û  °°Û °°Û  °°Û
+                       °°Ü  °°Û  °°°°°°Û  °°Û
+                        ßß   ßß   ßßßßßß   ßß
+
+                            (a short tutorial)
+
+
+Okay; now you have installed AniVGA and ran the small demo programs. You got
+interested and looked into ANIVGA.DOC. Gee! That huge thing nearly killed
+you! But what the heck, you are a programmer and *hate* reading manuals!
+So you took a look into ANIVGA.PAS, just to find out how easy it is to become
+frustrated by looking at 10000+ lines source code and understanding nothing?
+Boy, after all, you were only looking for a simple toolkit to realize your
+ultimate-hyper-whopping-super-game, ain't it? Well...
+
+So you stumbled across this file --congrats! This text is AniVGA "in a
+nutshell". It contains nothing which you wouldn't find in ANIVGA.DOC or the
+example programs, too. But it concentrates on telling you the basic concepts
+of AniVGA from a different side: namely YOU, the experienced Pascal- but
+not-so-experienced AniVGA-programmer!
+We won't bother with much details here: look into ANIVGA.DOC for that, we
+will concentrate on the basics!!
+
+| Therefore, we will work out the principles, leading you to special terms,
+| always typed between "-signs. Use these terms as an index into the manual
+| ANIVGA.DOC!
+
+___
+
+
+Imagine YOU had the chance to specify how a sprite engine for your
+applications should work; what concepts would you like?
+
+Thinking a bit, your first idea will surely be something simple like:
+- sprites
+- background images
+- an update routine which erases the old sprites and draws the new ones
+
+Sprites are your basic graphic objects which you want to move around the
+screen to do some fancy things and yes, you want that all actions shall take
+place in front of some background image, which you load into the graphic
+memory.
+Your sprites will be driven by: you tell which sprite should be drawn at
+which screen coordinate. You use arrays "SpriteX[]" and "SpriteY[]" to store
+the coordinates of your sprites and "SpriteN[]" holds the number of the
+sprite to display at this coordinate. You implement a procedure "Animate"
+which updates the screen accordingly, erasing the old sprites and drawing the
+new ones at their specified coordinates -- All pretty simple, you think, eh?
+
+So you start writing your game. But doing so, you find out that your approach
+was to simple:
+- A sprite (read: an animated graphic object at the screen) most often isn't
+  static. Instead, it consists of several frames repeating one after another.
+  For example, if you want to animate a burning torch, you should use a few
+  images showing the torch with different shapes of the flame and repeat the
+  animation through these single stages endlessly. This leads to what AniVGA
+  calls a "sprite cycle"
+- Your shoot'em-up game attacks the player with 50 aliens at once. Perhaps
+  you have 5 different alien types, but even then every 10 aliens have the
+  same shape. In the OOP, one would say, these 10 aliens are instances of the
+  same object. It's the same thing here: we have the data representing the
+  sprite's shape, which only has to be loaded into RAM _once_. This will be
+  called a "spriteLOAD number" in AniVGA. This is a handle used to access
+  the physical data. And then we have the 10 copies of this data on the
+  screen --what you normally would simply call "sprites".
+  These individuals are accessed by what AniVGA calls "sprite numbers".
+  It works like this: AniVGA loads the alien's data into memory and labels it
+  with a spriteLOAD number. You pick up this number and put it into 10 'slots'
+  of the "SpriteN[]" table: voil…, you just set up 10 aliens!
+
+But then you see that your background assumptions were to simple, too:
+- Drawing sprites deletes the background image, thus if you remove the sprite
+  from the screen later on, a hole remains at that area. So we need some kind
+  of repainting the erased area.
+
+Again, you think a bit and come up with a great idea: let's store the
+background image somewhere else, too and use that duplicate to repaint the
+erased areas! And indeed, AniVGA uses a "BACKGNDPAGE" for this purpose.
+Nevertheless, it ain't that simple: doing your animations would now consist
+of the following cycle:
+ a) draw sprites
+    ...
+ b) overdraw them with background area
+ c) draw sprites at new position
+But by doing so, there is a time (namely: between b) and c) ) where there is
+no visible image of your sprite on the screen! The human eye perceives this
+as 'blinking' or 'flickering' of the animation.
+The solution is called "page flipping": one uses (at least) two drawing
+pages which are displayed alternately. While you are showing one page, you
+are creating the next image on the other, invisible page. When you are done,
+you just flip the pages (by reprogramming the hardware), thus displaying the
+ready frame and using the formerly shown page as new (invisible) working page
+to draw upon.
+The flipping is done automatically in AniVGA; it uses two pages (0 & 1) for
+this purpose. Normally you don't have to bother which page is currently shown
+and which is used for drawing the next frame, but if you DO have, then you
+can query the variable "PAGE" for that purpose. It will report the number of
+the actually working page. Note that due to the page flipping scheme, this is
+*always* the number of the invisible page, i.e.: the visible page is always
+1-PAGE.
+
+
+Great! Now you may draw & erase sprites/sprite cycles, have taken care about
+the background image and avoided flickering effects. Unfortunately, 320x200
+pixels isn't a big area for graphics. Why not using a larger area than this
+physical screen area and use the screen only as a window to this 'world'?
+
+--Congrats, you just invented "virtual coordinates"!
+So you setup a coordinate space (it ranges from -16000..+16000 for both axis
+in AniVGA) and want your physical screen display to be a part of this area,
+320x200 pixels in size.
+How do you control _which_ 320x200 pixels are displayed?
+Well, simply specify the upper left corner of that area: if that is (a,b),
+then the screen should display the area (a+0,b+0)..(a+319,b+199); if for
+example you increment the x-coordinate (that is: 'a') by 10, then the next
+frame should slide the display 10 pixels to the right. AniVGA does exactly
+this, calling the upper left corner of your display "StartVirtualX" and
+"StartVirtualY".
+But during implementation of this scheme, you run into problems: your
+virtual screen has size 32000x32000 points, a complete background image
+would need 1GB (!) of memory! So what to do now?
+There are two methods:
+a) Use a 'fixed' background image: whatever area of your virtual coordinate
+   space is displayed, always use the same background image, 320x200 pixels
+   in size.
+   This works, if a monochrome background image suffices or you have an
+   image which is perspectively very far away (some mountains in the
+   distance, for example)
+b) Reduce the amount of background memory needed by cutting down the image
+   into "tiles": instead of storing each pixel, you define the picture
+   to consist of small areas. Then, each area is assigned a number which
+   determines how to paint that area.
+
+The former method a) is what is called "static" backgrounds in AniVGA, the
+latter method b) is called "scrolling" backgrounds.
+Note that in "scrolling" backgrounds, the background image itself doesn't
+exist physically! It will be 'puzzled' together by tiles each animation
+cycle: there is only a memory area "SCROLLPAGE", which holds the up to 256
+tiles (each 16x16 pixels) used to build the image. (Note that you are
+restricted to 256 _different_ tiles, but that you may use these to build
+up a background image of up to 10000 tiles.)
+On the other hand, the "static" background image _does_ exist (as page
+"BACKGNDPAGE") and thus may be changed easily.
+
+
+Now our sprite engine went to 10000+ lines code and works as it should. But
+you come up with a new eager idea: it would be nice if one could have a sort
+of *both* "scrolling" and "static" backgrounds in one. That is: you want to
+have an animation window on your screen, but the 'rest' of the screen area
+should be used statically for displaying text, hiscores, special items, etc.
+Starting with V1.2, AniVGA gives you this oppotunity as well: there's a
+routine named "SetAnimateWindow()" which restricts animations to the screen
+area you name. The area outside this window becomes filled with the *static*
+background page contents from page "BACKGNDPAGE". On the other hand, the
+animation window area will use "BACKGNDPAGE" or "SCROLLPAGE" as background,
+depending on which "background mode" you use: "STATIC" or "SCROLLING",
+respectively. (In other words: when not using the "SetAnimateWindow()"-
+routine, AniVGA uses an implicit SetAnimateWindow(0,0,319,199) call).
+
+However, let's think about the area outside the animation window:
+Should it be updated every animation cycle automatically (like the area
+_inside_ the window is)? No! In normal applications, this area won't be
+updated for a 'long' time, say 30 animation cycles or so. Therefore, AniVGA
+doesn't change this area at all --unless you explicitely tell it to do so.
+Let's take an example: you want to output a hiscore to that outer area.
+How would you do it?
+a) use a sprite for that (there's a routine "MakeTextSprite()" which would
+   assist you for this method)
+b) write the text to the ("static") background page "BACKGNDPAGE"
+c) write the text directly to the two display pages
+
+Let's postpone a) for a moment; using b) wouldn't be a good idea for two
+reasons:
+- You wouldn't see the results on the screen. Why? Well, you did the change
+  to the background page, lying somewhere in memory. To see it, the updated
+  background page must first be copied to the visible display page --but as
+  mentioned before, AniVGA won't do so for the outer area. (You would have
+  to tell it by setting "UpdateOuterArea:=2". Then the next call to
+  "Animate()" will update the outer area, too)
+- The second reason is that you 'brand' the text into the background area,
+  which most often isn't what you want: the only way to get rid of this text
+  is to overwrite the background area concerned somehow. Nasty!
+
+Method c) is much better: write the text directly to both pages: as AniVGA
+doesn't change the outer screen area, the information will stay there.
+If you want to erase it later on, you still have the choice, how:
+- just undraw the text, overwrite it, paste over it with a previously
+  saved "GetImage()" area, ...
+- set "UpdateOuterArea:=2"
+The former method is suitable whenever the area which needs mending is small
+and/or you know how to easily achieve that. The latter method is the 'sledge-
+hammer-method', as it replaces the _complete_ outer area by the contents of
+the background page. This is handy, if you did a lot of changes to the area
+and/or it would be difficult to undo the changes.
+
+What about a), I hear you ask? Hm... perhaps you should first re-think your
+question: didn't we set up an animation window to _restrict_ sprites to that
+inner area? And now you want to draw sprites _outside_ the animation window?
+Gee, strange! ;-)
+Indeed, it seems as if we need two groups of sprites: one, which really get
+clipped to the animation window and another, which may be drawn everywhere.
+In AniVGA, you may divide the sprites into two groups by using the routine
+"SetSplitIndex(n)": after that call, all sprites "SpriteN[0]".."SpriteN[n]"
+will be 'free' to be drawn everywhere on the screen while all others will
+be restricted to the animation window.
+
+Similiarly, a second question should come to your mind: how should other
+graphic actions behave in the area outside the animation window?
+For example, should a line which runs diagonally through your animation
+window be drawn completely or should the parts which lie outside the window
+be clipped off? Both ways of acting make sense!
+Therefore you can control the way AniVGA treats its pixeldrawing routines
+by using the boolean variable "WinClip": if it's set to FALSE (the default
+value), then pixels outside the animation window won't be clipped; if
+WinClip=TRUE, they will be clipped.

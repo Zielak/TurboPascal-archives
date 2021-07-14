@@ -1,0 +1,95 @@
+List of changes:
+컴컴컴컴컴컴컴컴
+
+V1.1 -> V1.2:
+
+o corrected synchronisation correctly to "horizontal enable's" negative logic
+o added new fade (Fade_Moiree15)
+o MAKES: switched usage of some units to completely self-written ones;
+  included sources
+o MAKES: correctly disabled mouse call back at the end of the program
+o replaced Dispose() by FreeMem() call in routine
+o MAKES: inserted missing Close() in SavePalette() procedure
+o introduced data compression algorithms into all programs; wrote (de-)compress
+  program BFFFFFFF.EXE
+o MAKES: made INT33h to save&restore SS:SP, too  (just to be on the safe side)
+o MAKES: holding button pressed keeps drawing pixels
+o added new LoadFont() routine (and some fonts)
+o optimized synchronisation code to squeeze out some CPU cycles
+o MAKES: forgot to call AdjustMouse() in routine ShowCursorDaten()
+o MAKES: corrected workarea box from (0..320,0..200) to (0..319,0..199)
+o MAKES: enhanced user interface; last used dir will be default for next input
+o MAKES: used newest SVGA-driver
+o added Colin Buckley's excellent UNCHAIN utility to enable proper debugging
+  in tweaked graphic modes
+o introduced windowed animations: SetAnimateWindow(), UpdateOuterArea, Win*
+o added routine FreeSpriteMem() to get rid of no more used sprites; moved
+  SpriteAd[] into IMPLEMENTATION-section therefore.
+  Introduced two internal tables (SpriteSize[] & SpritePTR[]) and changed
+  LoadSprite() and InitRoutines() accordingly
+o moved BACKGNDPAGE to EMS/RAM-memory, introduced BACKGNADR as pointer to it
+o uniformly made page-parameter "pa" of type WORD everywhere
+o added routine CopyVRAMtoVRAM()
+o changed PutPixel- and Line-routines to clip to animation window if wanted;
+  introduced variable WinClip for this purpose
+o added SetSplitIndex() & GetSplitIndex(), to support selective clipping for
+  sprites, too
+o added MakeSpriteText()-routine
+o added MakeTileArea() for simplified background tiling
+o added fade in's, fade out's (and more) by FadeToPalette()
+o MAKES: added command line switch "/480" to use 640x480x256 as graphic mode
+o added FindFile() routine to improve file name handling
+o omitted TRANSLAT-utility from the package and added a pre-translated
+  English version ANIVGA.ENG to the package
+o changed last column handling in sprite saving routines
+
+_____________________________________________________________________________
+
+V1.0 -> V1.1:
+
+o Added compiler switches $G-,$I-,$F-,$X-,$N-,$L+ for completeness
+o changed code so that it works for code generation with $G+
+o changed page flipping; ANIVGA now synchronizes to "display enable" (instead
+  of vertical retrace)
+o killed a few documentation flaws
+o completely rewrote GRAB: may use either BIOS or built-in screen access
+  routines, supports mouse
+o rewrote ANIVGA code to use 16 bit screen accesses whereever it made sense
+  (note that there are situations where it is *really* faster to work with 8
+   bit accesses!)
+o moved types PaletteEntry, Palette and PalettePtr into the interface-section
+o constant DefaultColors, too
+o rewrote SetShadowTab() completely - should be 5x faster now
+o added new display mode Display_SHADOWEXACT
+o added SetPalette() and GetPalette()
+o told InitRoutines() to definetly set default color palette
+o made SetShadowTab() work on actually set colors (instead upon the default
+  colors)
+o should detect whether it runs on a monochrome or color display - sorry, I
+  don't have a monochrome one to test it out
+o fixed bug in tiling scheme: surrounding area now uses tile #0 instead of the
+  first tile (=BackTile[0])
+o introduced procedure SetOffscreenTile()
+o introduced procedure FreeImageMem()
+o corrected default palette: color #255 should have RGB-triple (0,0,0)
+o fixed SetShadowTab() to compare 256 colors (instead of only 255)
+o extended SetShadowTab() to handle _very_ strange valued palettes, too
+o introduced constant ANIVGAVersion
+o rewrote LoadPage(): TP seems to dislike direct BlockReads() into graphic
+  memory sometimes
+o added 24 fading routines to be thought for nice, eye-catching opening
+  sequences
+o changed & added the the example programs a bit
+o changed DUMP_SPR.EXE to handle very large big sprites correctly
+o included TRANSLAT.EXE (a utility of mine) and ANIVGA.DIC which allows you
+  to produce an English version of ANIVGA.PAS
+
+All in all, programs done with version 1.0 should run after recompilation with
+V1.1 without noticable changes. There are two execptions:
+- Because SetShadowTab() now works on the _actually set_ colors, you may call
+  this routine not before you switched to graphic, that is: after InitGraph()
+  has been called
+- If you make use of GetImage(), you have to use the new procedure
+  FreeImageMem() as its counterpart (to release memory agian); Dispose() won't
+  work as expected
+

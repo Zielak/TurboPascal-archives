@@ -1,0 +1,82 @@
+
+ VOC playing routines for SB PRO.
+ (C) Copyright by TSC-Software, 1993-95
+
+ --------------------------------------
+
+ Play Creative Voice Files through your Soundblaster card. Either from base
+ memory or XMS, you decide! This TPU supports all 8-bit VOC-file formats.
+
+
+ The following data and procedures are declared as public:
+
+
+  Const
+   RAM  = 0;                          { constants for LoadVOC }
+   XMS  = 1;
+
+   OFF  = 0;                          { constants for Speaker access }
+   ON   = 1;
+
+   DMAChannel: Word = 1;              { default DMA-channel, no autodetect }
+
+  Type
+   VOCDataRec = ^VOCInfoRec;          { information about VOC-files }
+   VOCInfoRec = Record
+    Size:     LongInt;
+    Addr:     Pointer;
+    Handle:   Word;
+   End;
+
+  Var
+   StatusWord: Word;                  { Check this word, if you want to   }
+                                      { know, if currently music is being }
+                                      { played.  0=No music, 0FFFFh=music }
+
+				      { If this value is 8000h after the  }
+				      { program startup sequence, the in- }
+				      { ternal driver wasn't initialised  }
+				      { and you can't play music.	  }
+
+
+  Function  LoadVOC(FName: String; FSeek: LongInt; Memory: Byte; Var VOCData: VOCDataRec): Byte;
+  { Load a VOC-file from file "FName" at position "FSeek", into memory. The }
+  { VOC must have been converted with VREMOVE. You can load every VOC-file  }
+  { whose size is less than 65529 bytes into base memory (Memory=RAM). Lar- }
+  { ger files must be loaded into XMS. If LoadVOC returns a non-zero value, }
+  { an error has occured else the VOC-file has been loaded.                 }
+  { Memory requirements:                                                    }
+  {  RAM -> VOC-file (base) + VOCData (base)                                }
+  {  XMS -> VOC-file (XMS)  + VOCData (base) + Buffer 65528 bytes (base)    }
+  {         Buffer is automaticly being released after the loading process  }
+
+  Procedure FreeVOC(Var VOCData: VOCDataRec);
+  { Frees up all memory taken by the VOC-file and additional data           }
+
+  Procedure PlayVOC(Var VOCData: VOCDataRec);
+  { Plays a VOC-file either from base mem or XMS, depending how it has been }
+  { loaded. Note: YOU CAN'T PLAY A SAMPLE OVER A MODULE. So stop playing a  }
+  { AMIGA MOD-file, if you want to output a VOC-file. Check STATUSWORD, if  }
+  { you're currently playing a VOC-file or not.                             }
+
+  Procedure StopVOC;
+  { Stop playing the VOC-file.                                              }
+
+  Procedure BreakVOC;
+  { Interrupt playing process.                                              }
+
+  Procedure ContiVOC;
+  { Continue to play.                                                       }
+
+  Procedure Speaker(Access: Word);
+  { Turns the connection between DSP and LINE OUT on or off. Turn the spea- }
+  { kers on before you play a VOC-file and turn it off before you leave the }
+  { program. OFF=0, ON=1                                                    }
+
+  Procedure ResetDrv;
+  { Turns the internal Soundblaster driver off. You MUST call this function }
+  { before exiting the program.                                             }
+
+
+  Take a look at VPLAY.PAS how to use the unit. This unit needs DETECT.TPU
+  and XMSDRV.TPU for internal processes.
